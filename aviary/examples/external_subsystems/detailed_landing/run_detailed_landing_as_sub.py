@@ -125,7 +125,7 @@ prob.add_design_variables()
 
 prob.add_objective(objective_type='fuel_burned')
 
-prob.options['group_by_pre_opt_post'] = False
+prob.options['group_by_pre_opt_post'] = True
 
 prob.setup()
 

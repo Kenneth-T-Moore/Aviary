@@ -170,7 +170,7 @@ def create_prob(aviary_inputs):
     prob.add_post_mission_systems()
     prob.link_phases()
 
-    prob.add_driver('SLSQP', max_iter=30)
+    prob.add_driver('SNOPT', max_iter=30)
 
     prob.add_design_variables()
 
@@ -188,9 +188,40 @@ class AviarySubmodelComp(om.SubmodelComp):
         super().setup()
 
         sub = self._subprob
-        sub.setup()
         sub.set_initial_guesses()
         sub.final_setup()
+
+    def compute(self, inputs, outputs):
+        """
+        Perform the subproblem system computation at run time.
+
+        Parameters
+        ----------
+        inputs : Vector
+            Unscaled, dimensional input variables read via inputs[key].
+        outputs : Vector
+            Unscaled, dimensional output variables read via outputs[key].
+        """
+        p = self._subprob
+
+        # set our inputs into the submodel outputs. We don't set into the submodel inputs
+        # because they are all connected to outputs which would overwrite our values when the
+        # submodel runs. So the only inputs we allow from outside are those that are connected to
+        # indep vars, which are outputs in the submodel that are not dependent on anything else.
+        p.model._outputs.set_val(inputs.asarray()[self._ins_idxs()], idxs=self._ins2sub_outs_idxs())
+
+        if self._do_opt:
+            p.run_aviary_problem(simulate=False)
+        else:
+            p.run_model()
+
+        # collect outputs from the submodel
+        self._outputs.set_val(0.0)
+        self._outputs.set_val(p.model._outputs.asarray()[self._sub_outs_idxs()],
+                              idxs=self._outs_idxs())
+
+        if self.comm.size > 1:
+            self._outputs.set_val(self.comm.allreduce(self._outputs.asarray(), op=MPI.SUM))
 
 
 class ExternalLandingGroup(om.Group):
