@@ -127,6 +127,12 @@ prob.add_objective(objective_type='fuel_burned')
 
 prob.options['group_by_pre_opt_post'] = True
 
+prob.model.connect(
+    'traj.descent.states:mass',
+    'detailed_landing.mass_start_landing',
+    src_indices=[-1]
+)
+
 prob.setup()
 
 prob.set_initial_guesses()

@@ -177,6 +177,9 @@ def create_prob(aviary_inputs):
     # With mass fixed, what does this do?
     prob.add_objective('mass')
 
+    # Make mass linkable
+    prob.traj.phases.GH.set_state_options('mass', input_initial=True, fix_initial=False)
+
     return prob
 
 
@@ -242,10 +245,10 @@ class ExternalLandingGroup(om.Group):
             problem=subprob,
             inputs=[
                 Mission.Summary.GROSS_MASS,
+                ('traj.GH.initial_states:mass', 'mass_start_landing'),
             ],
             outputs=[
                 ('traj.IJ.timeseries.distance', 'distance'),
             ]
         )
-
         self.add_subsystem('external_landing', comp, promotes=['*'])
