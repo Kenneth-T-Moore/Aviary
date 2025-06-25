@@ -2,6 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 import openmdao.api as om
+from openmdao.utils.general_utils import env_truthy as _env_truthy
 from dymos.transcriptions.transcription_base import TranscriptionBase
 
 from aviary.mission.flight_phase_builder import FlightPhaseOptions
@@ -494,8 +495,14 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
         )
 
         last_regular_phase = prob.regular_phases[-1]
+
+        if _env_truthy('DYMOS_2'):
+            mass_src = f'traj.{last_regular_phase}.timeseries.mass'
+        else:
+            mass_src = f'traj.{last_regular_phase}.states:mass'
+
         prob.model.connect(
-            f'traj.{last_regular_phase}.states:mass',
+            mass_src,
             Mission.Landing.TOUCHDOWN_MASS,
             src_indices=[-1],
         )

@@ -1,4 +1,5 @@
 import openmdao.api as om
+from openmdao.utils.general_utils import env_truthy as _env_truthy
 from openmdao.utils.mpi import MPI
 
 from aviary.utils.aviary_values import AviaryValues
@@ -96,6 +97,10 @@ class AviaryGroup(om.Group):
                 # choice and should be able to handle it in a couple of
                 # iterations.
                 self.traj.phases.linear_solver = om.LinearBlockJac(maxiter=5)
+
+            if _env_truthy('DYMOS_2'):
+                # Dymos 2 fixes an issue that we had to patch here.
+                return
 
             # Due to recent changes in dymos, there is now a solver in any phase
             # that has connected initial states. It is not clear that this solver
