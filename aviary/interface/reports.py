@@ -310,12 +310,13 @@ def input_check_report(prob, **kwargs):
 
             for var in sorted(bare_hierarchy_inputs):
                 metadata = aviary_metadata.get(var)
-                units = metadata['units']
-                val = model.get_val(var, units=units)
-                desc = metadata['desc']
-                abs_paths = prom2abs(var)
+                if metadata:
+                    units = metadata['units']
+                    val = model.get_val(var, units=units)
+                    desc = metadata['desc']
+                    abs_paths = prom2abs(var)
 
-                f.write(f'| **{var}** | {val} | {units} | {desc} | {abs_paths}|\n')
+                    f.write(f'| **{var}** | {val} | {units} | {desc} | {abs_paths}|\n')
 
             f.write('\n')
 
