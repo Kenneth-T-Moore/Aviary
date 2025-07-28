@@ -80,6 +80,18 @@ class FlightPhaseOptions(AviaryOptionsDictionary):
         )
 
         self.declare(
+            name='throttle_optimize',
+            default=False,
+            types=bool,
+            desc='Set to True to let Optimizer handle throttle.',
+        )
+        # These are only valid if opt_throttle is True.
+        defaults = {
+            'throttle_bounds': (0.0, 1.0),
+        }
+        self.add_control_options('throttle', units='unitless', defaults=defaults)
+
+        self.declare(
             name='throttle_allocation',
             default=ThrottleAllocation.FIXED,
             values=[
@@ -205,6 +217,7 @@ class FlightPhaseBase(PhaseBuilderBase):
         no_climb = user_options['no_climb']
         constraints = user_options['constraints']
         ground_roll = user_options['ground_roll']
+        throttle_optimize = user_options['throttle_optimize']
 
         ##############
         # Add States #
@@ -261,6 +274,14 @@ class FlightPhaseBase(PhaseBuilderBase):
             rate2_targets=rate2_targets,
             add_constraints=Dynamic.Mission.ALTITUDE not in constraints,
         )
+
+        if throttle_optimize:
+            self.add_control(
+                'throttle',
+                Dynamic.Vehicle.Propulsion.THROTTLE,
+                rate_targets=None,
+                add_constraints=True,
+            )
 
         # For heterogeneous-engine cases, we may have throttle allocation control.
         if phase_type is EquationsOfMotion.HEIGHT_ENERGY and num_engine_type > 1:
@@ -428,6 +449,7 @@ class FlightPhaseBase(PhaseBuilderBase):
             'subsystem_options': self.subsystem_options,
             'throttle_enforcement': self.user_options['throttle_enforcement'],
             'throttle_allocation': self.user_options['throttle_allocation'],
+            'throttle_optimize': self.user_options['throttle_optimize'],
         }
 
 
