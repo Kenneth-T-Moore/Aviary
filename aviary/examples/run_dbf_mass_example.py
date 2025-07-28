@@ -23,7 +23,7 @@ def run_level3_dbf_example():
     ribs = np.array([0]*14 + [1]*5 + [2])
     bulkhead_materials = np.where(ribs != 0, 'Ply', 'Balsa').tolist()
     rib_thicks = np.where(ribs == 2, 0.25, 0.125)
-    fuselage.options['bulkhead_materials'] = bulkhead_materials
+    fuselage.options[Aircraft.Fuselage.Dbf.BULKHEAD_MATERIALS] = bulkhead_materials
     fuselage.set_option(Aircraft.Fuselage.Dbf.BULKHEAD_THICKNESS, val=rib_thicks, units='inch')
     fuselage.set_option(Aircraft.Fuselage.Dbf.NUM_SPARS, val=0.5, units='unitless')
     fuselage.set_option(Aircraft.Fuselage.Dbf.BULKHEAD_LIGHTENING_FACTOR, val=0.18, units='unitless')
@@ -41,6 +41,8 @@ def run_level3_dbf_example():
     fuselage.set_option(Aircraft.Fuselage.Dbf.SPAR_DENSITY, val=2, units='g/cm**3')
     fuselage.set_option(Aircraft.Fuselage.Dbf.SPAR_OUTER_DIAMETER, val=1, units='inch')
     fuselage.set_option(Aircraft.Fuselage.Dbf.SPAR_WALL_THICKNESS, val=0.0625, units='inch')
+    # Add the missing MISC_MASS option
+    fuselage.set_option(Aircraft.Fuselage.Dbf.MISC_MASS, val=0.0, units='kg')
     model.add_subsystem('fuselage', fuselage, promotes_inputs=['*'], promotes_outputs=['*'])
 
     # -----------------------------
@@ -49,8 +51,8 @@ def run_level3_dbf_example():
     vtail = DBFVerticalTailMass()
     rib_thicks_v = np.array([0.125]*5)
     rib_materials_v = ['Balsa'] * 4 + ['Ply'] * 1
-    vtail.options['rib_materials'] = rib_materials_v
-    vtail.options['airfoil_data_file'] = (
+    vtail.options[Aircraft.VerticalTail.Dbf.RIB_MATERIALS] = rib_materials_v
+    vtail.options[Aircraft.VerticalTail.Dbf.AIRFOIL_PATH] = (
         r'aviary\examples\external_subsystems\dbf_based_mass\n0012-il.csv'
     )
     vtail.set_option(Aircraft.VerticalTail.Dbf.RIB_THICKNESS, val=rib_thicks_v, units='inch')
@@ -68,6 +70,7 @@ def run_level3_dbf_example():
     vtail.set_option(Aircraft.VerticalTail.Dbf.SPAR_DENSITY, val=0, units='g/cm**3')
     vtail.set_option(Aircraft.VerticalTail.Dbf.SPAR_OUTER_DIAMETER, val=0, units='inch')
     vtail.set_option(Aircraft.VerticalTail.Dbf.SPAR_WALL_THICKNESS, val=0.0, units='inch')
+    vtail.set_option(Aircraft.VerticalTail.Dbf.MISC_MASS, val=0.0, units='kg')
     model.add_subsystem('vtail', vtail, promotes_inputs=['*'], promotes_outputs=['*'])
 
     # -----------------------------
@@ -76,8 +79,8 @@ def run_level3_dbf_example():
     htail = DBFHorizontalTailMass()
     rib_thicks_h = np.array([0.125]*8)
     rib_materials_h = ['Balsa'] * 6 + ['Ply'] * 2
-    htail.options['rib_materials'] = rib_materials_h
-    htail.options['airfoil_data_file'] = (
+    htail.options[Aircraft.HorizontalTail.Dbf.RIB_MATERIALS] = rib_materials_h
+    htail.options[Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH] = (
         r'aviary\examples\external_subsystems\dbf_based_mass\n0012-il.csv'
     )
     htail.set_option(Aircraft.HorizontalTail.Dbf.RIB_THICKNESS, val=rib_thicks_h, units='inch')
@@ -95,6 +98,7 @@ def run_level3_dbf_example():
     htail.set_option(Aircraft.HorizontalTail.Dbf.SPAR_DENSITY, val=0, units='g/cm**3')
     htail.set_option(Aircraft.HorizontalTail.Dbf.SPAR_OUTER_DIAMETER, val=0, units='inch')
     htail.set_option(Aircraft.HorizontalTail.Dbf.SPAR_WALL_THICKNESS, val=0, units='inch')
+    htail.set_option(Aircraft.HorizontalTail.Dbf.MISC_MASS, val=0.0, units='kg')
     model.add_subsystem('htail', htail, promotes_inputs=['*'], promotes_outputs=['*'])
 
     # -----------------------------
@@ -104,8 +108,8 @@ def run_level3_dbf_example():
     ribs = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
     rib_materials = ['Balsa'] * 15 + ['Ply'] * 5
     rib_thicks = np.where(ribs != 0, 0.125, 0.125)
-    wing.options['rib_materials'] = rib_materials
-    wing.options['airfoil_data_file'] = (
+    wing.options[Aircraft.Wing.Dbf.RIB_MATERIALS] = rib_materials
+    wing.options[Aircraft.Wing.Dbf.AIRFOIL_PATH] = (
         r'aviary\examples\external_subsystems\dbf_based_mass\mh84-il.csv'
     )
     wing.set_option(Aircraft.Wing.Dbf.SHEETING_COVERAGE, val=0.4, units='unitless')
@@ -169,7 +173,8 @@ def run_level3_dbf_example():
     print(f"Wing Mass: {prob.get_val(Aircraft.Wing.MASS)[0]:.4f} kg")
     print(f"Battery Mass: {prob.get_val(Aircraft.Battery.MASS)[0]:.4f} kg")
     print(f"Motor Mass: {prob.get_val(Aircraft.Engine.Motor.MASS)[0]:.4f} kg")
-    print(f"Total Mass: {prob.get_val('total_mass')[0]:.4f} kg")
+    print(f"Total Mass: {prob.get_val(Aircraft.Design.OPERATING_MASS)[0]:.4f} kg")
+    print(prob.get_val(Aircraft.Design.OPERATING_MASS))
 
 
 if __name__ == '__main__':
