@@ -15,7 +15,7 @@ class BodyTankCalculations(om.ExplicitComponent):
     """
 
     def initialize(self):
-        add_aviary_option(self, Aircraft.Design.SMOOTH_MASS_DISCONTINUITIES, True)
+        add_aviary_option(self, Aircraft.Design.SMOOTH_MASS_DISCONTINUITIES)
         add_aviary_option(self, Settings.VERBOSITY)
         self.options.declare('mu', default=1.0, types=float)
 
