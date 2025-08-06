@@ -1,115 +1,220 @@
-import openvsp as vsp 
 import os
-import openmdao.api as om
-from openvsp import SET_ALL, EXPORT_STL
+import numpy as np
 
-class DBFAircraftMeshExporter(om.ExplicitComponent):
+import openvsp as vsp 
+from openvsp import (SET_ALL, XS_ROUNDED_RECTANGLE, XS_FOUR_SERIES, EXPORT_STL,
+                     FLAT_END_CAP, EDGE_END_CAP, NO_END_CAP, ROUND_END_CAP)
+import openmdao.api as om
+
+from aviary.examples.external_subsystems.dbf_based_mass.materials_database import materials
+from aviary.utils.utils import wrapped_convert_units
+from aviary.variable_info.functions import add_aviary_input, add_aviary_output
+from aviary.variable_info.variables import Aircraft
+from aviary.variable_info.variable_meta_data import _MetaData
+
+class DBFGeom(om.ExplicitComponent):
 
     def setup(self):
-        # Inputs (Design Variables)
-        self.add_input("wing_span", val=4.0, units="m", desc="Wing span")
-        self.add_input("wing_chord", val=0.5, units="m", desc="Wing chord")
-
-        # Outputs
-        self.add_output("initial_mesh_path", val="", desc="Path to initial mesh file", units=None)
-        self.add_output("final_mesh_path", val="", desc="Path to final mesh file", units=None)
-
-        # Internals
-        self.model_path = os.path.abspath("test.vsp3")
-        self.initial_mesh_out = os.path.abspath("initial_mesh.stl")
-        self.final_mesh_out = os.path.abspath("final_mesh.stl")
-
-    def premission(self):
-        self._generate_mesh(self.model_path, self.initial_mesh_out)
-
-    def postmission(self):
-        self._generate_mesh(self.model_path, self.final_mesh_out)
+        add_aviary_input(self, Aircraft.Wing.ROOT_CHORD, units='inch')
+        add_aviary_input(self, Aircraft.Wing.SPAN, units='inch')
+        add_aviary_input(self, Aircraft.HorizontalTail.ROOT_CHORD, units='inch')
+        add_aviary_input(self, Aircraft.HorizontalTail.SPAN, units='inch')
+        add_aviary_input(self, Aircraft.VerticalTail.ROOT_CHORD, units='inch')
+        add_aviary_input(self, Aircraft.VerticalTail.SPAN, units = 'inch')
+        add_aviary_input(self, Aircraft.Fuselage.LENGTH, units='inch')
+        add_aviary_input(self, Aircraft.Fuselage.AVG_WIDTH, units='inch')
+        add_aviary_input(self, Aircraft.Fuselage.AVG_HEIGHT, units='inch')
 
     def compute(self, inputs, outputs):
+        wing_chord = inputs[Aircraft.Wing.ROOT_CHORD][0]
+        wing_span = inputs[Aircraft.Wing.SPAN][0]
+        htail_chord = inputs[Aircraft.HorizontalTail.ROOT_CHORD][0]
+        htail_span = inputs[Aircraft.HorizontalTail.SPAN][0]
+        vtail_chord = inputs[Aircraft.VerticalTail.ROOT_CHORD][0]
+        vtail_span = inputs[Aircraft.VerticalTail.SPAN][0]
+        fuse_len = inputs[Aircraft.Fuselage.LENGTH][0]
+        fuse_width = inputs[Aircraft.Fuselage.AVG_WIDTH][0]
+        fuse_height = inputs[Aircraft.Fuselage.AVG_HEIGHT][0]
 
-        model_path = self.model_path
+        # Add Fuselage Geom
+        fuseid = vsp.AddGeom("FUSELAGE", "")
+        vsp.SetParmVal(fuseid, "Length", "Design", fuse_len)  # Set desired fuselage length
 
-        status = vsp.ReadVSPFile(model_path)
-        if status != 0:
-            raise RuntimeError(f"Failed to read VSP file: {model_path} (error code {status})")
-        # Store output paths
-        outputs["initial_mesh_path"] = self.initial_mesh_out
-        outputs["final_mesh_path"] = self.final_mesh_out
+        # Loop over all fuselage sections
+        num_sections = vsp.GetNumXSecSurfs(fuseid)
+        for i in range(num_sections):
 
-    def _generate_mesh(self, model_path, output_path):
-        # Reset and load model
-        vsp.VSPRenew()
-        vsp.ReadVSPFile(model_path)
+            xsec_surf = vsp.GetXSecSurf(fuseid, i)
+            num_xsecs = vsp.GetNumXSec(xsec_surf)
 
-        # Find and update parameters
-        wing_id = vsp.FindGeom("Wing", 0)
-        span_id = vsp.GetParm(wing_id, "Span", "XSec_1")
-        chord_id = vsp.GetParm(wing_id, "Chord", "XSec_1")
+            for j in range(num_xsecs):
 
-        vsp.SetParmVal(span_id, float(self.get_val("wing_span")))
-        vsp.SetParmVal(chord_id, float(self.get_val("wing_chord")))
+                if j == (num_xsecs - 1):
+                    xsec = vsp.GetXSec(xsec_surf, j)
+                    if vsp.GetXSecShape(xsec) != XS_ROUNDED_RECTANGLE:
+                        vsp.ChangeXSecShape(xsec_surf, j, XS_ROUNDED_RECTANGLE)
+                    
+                    xsec = vsp.GetXSec(xsec_surf, j)
+                    zid = vsp.GetXSecParm(xsec, "ZLocPercent")
+                    vsp.SetParmVal(zid, (fuse_height - 0.5) / fuse_len / 2)
+                    wid = vsp.GetXSecParm(xsec, "RoundedRect_Width")
+                    vsp.SetParmVal(wid, 0.5)
+                    hid = vsp.GetXSecParm(xsec, "RoundedRect_Height")
+                    vsp.SetParmVal(hid, 0.5)
+                    taid = vsp.GetXSecParm(xsec, "TopLAngle")
+                    vsp.SetParmVal(taid, 0.0)
+                    raid = vsp.GetXSecParm(xsec, "RightLAngle")
+                    vsp.SetParmVal(raid, 0.0)
+                    tsid = vsp.GetXSecParm(xsec, "TopLStrength")
+                    vsp.SetParmVal(tsid, 0.05)
+                    rsid = vsp.GetXSecParm(xsec, "RightLStrength")
+                    vsp.SetParmVal(rsid, 0.05)
+                
+                elif j == 0:
+                    xsec = vsp.GetXSec(xsec_surf, j)
+                    if vsp.GetXSecShape(xsec) != XS_ROUNDED_RECTANGLE:
+                        vsp.ChangeXSecShape(xsec_surf, j, XS_ROUNDED_RECTANGLE)
+                        
+                    xsec = vsp.GetXSec(xsec_surf, j)
+                    wid = vsp.GetXSecParm(xsec, "RoundedRect_Width")
+                    vsp.SetParmVal(wid, 5.0/2)
+                    hid = vsp.GetXSecParm(xsec, "RoundedRect_Height")
+                    vsp.SetParmVal(hid, 4.0/2)
+                    taid = vsp.GetXSecParm(xsec, "TopLAngle")
+                    vsp.SetParmVal(taid, 10.0)
+                    raid = vsp.GetXSecParm(xsec, "RightLAngle")
+                    vsp.SetParmVal(raid, 10.0)
+                    tsid = vsp.GetXSecParm(xsec, "TopLStrength")
+                    vsp.SetParmVal(tsid, 1.0)
+                    rsid = vsp.GetXSecParm(xsec, "RightLStrength")
+                    vsp.SetParmVal(rsid, 1.0)
+
+                else:
+                    xsec = vsp.GetXSec(xsec_surf, j)
+                    if vsp.GetXSecShape(xsec) != XS_ROUNDED_RECTANGLE:
+                        vsp.ChangeXSecShape(xsec_surf, j, XS_ROUNDED_RECTANGLE)
+                        
+                    xsec = vsp.GetXSec(xsec_surf, j)
+                    wid = vsp.GetXSecParm(xsec, "RoundedRect_Width")
+                    vsp.SetParmVal(wid, fuse_width)
+                    hid = vsp.GetXSecParm(xsec, "RoundedRect_Height")
+                    vsp.SetParmVal(hid, fuse_height)
+
+            fcap = vsp.GetParm(fuseid, "CapUMinOption", "EndCap")
+            vsp.SetParmVal(fcap, ROUND_END_CAP)
+            fcap_length = vsp.GetParm(fuseid, "CapUMinLength", "EndCap")
+            vsp.SetParmVal(fcap_length, 0.015 * fuse_len)
+            ecap = vsp.GetParm(fuseid, "CapUMaxOption", "EndCap")
+            vsp.SetParmVal(ecap, EDGE_END_CAP)
+            ecap_length = vsp.GetParm(fuseid, "CapUMaxLength", "EndCap")
+            vsp.SetParmVal(ecap_length, 0.05)
+
+
         vsp.Update()
 
-        # Run CompGeom to generate mesh
-        compgeom_id = vsp.ExecAnalysis("CompGeom")
-        mesh_ids = vsp.GetStringResults(compgeom_id, "Mesh_GeomID")
+        ### Wing ###
+        wid = vsp.AddGeom( "WING", "" ) # Add Wing
+        # Set wing parameters to remove taper and sweep
+        vsp.SetParmVal(wid, "Root_Chord", "XSec_1", wing_chord)   # Root chord length
+        vsp.SetParmVal(wid, "Tip_Chord", "XSec_1", wing_chord)    # Tip chord = Root chord → no taper
+        vsp.SetParmVal(wid, "Sweep", "XSec_1", 0.0)        # No sweep
+        vsp.SetParmVal(wid, "Dihedral", "XSec_1", 0.0)     # (optional) No dihedral
+        vsp.SetParmVal(wid, "Span", "XSec_1", wing_span)        # Set desired span
+        vsp.SetParmVal(wid, "Twist", "XSec_1", 0.0)        # (optional) No twist
+        vsp.SetParmVal(wid, "X_Rel_Location", "XForm", 9.0)
+        vsp.SetParmVal(wid, "Z_Rel_Location", "XForm", - 1 * fuse_height + 0.2 * wing_chord)
 
-        # Export mesh to STL
-        vsp.ExportFile(output_path, SET_ALL, EXPORT_STL)
+        # After creating the wing and setting span, chord, etc.
+        xsec = vsp.GetXSec(vsp.GetXSecSurf(wid, 0), 1)     # Get the actual XSec object
+        tc_parm = vsp.GetXSecParm(xsec, "ThickChord")      # Get the t/c parameter
+        vsp.SetParmVal(tc_parm, 0.2)                       # Set thickness-to-chord ratio (e.g., 15%)
+        xsec = vsp.GetXSec(vsp.GetXSecSurf(wid, 0), 0)     # Get the actual XSec object
+        tc_parm = vsp.GetXSecParm(xsec, "ThickChord")      # Get the t/c parameter
+        vsp.SetParmVal(tc_parm, 0.2)                       # Set thickness-to-chord ratio (e.g., 15%)
+
+        ### HTAIL ###
+        htail_id = vsp.AddGeom( "WING", "" ) # Add Wing
+        # Set wing parameters to remove taper and sweep
+        vsp.SetParmVal(htail_id, "Root_Chord", "XSec_1", htail_chord)   # Root chord length
+        vsp.SetParmVal(htail_id, "Tip_Chord", "XSec_1", htail_chord)    # Tip chord = Root chord → no taper
+        vsp.SetParmVal(htail_id, "Sweep", "XSec_1", 0.0)        # No sweep
+        vsp.SetParmVal(htail_id, "Dihedral", "XSec_1", 0.0)     # (optional) No dihedral
+        vsp.SetParmVal(htail_id, "Span", "XSec_1", htail_span)         # Set desired span
+        vsp.SetParmVal(htail_id, "Twist", "XSec_1", 0.0)        # (optional) No twist
+        vsp.SetParmVal(htail_id, "X_Rel_Location", "XForm", fuse_len - 0.25)
+        vsp.SetParmVal(htail_id, "Z_Rel_Location", "XForm", fuse_height / 2 - 0.25)
+
+        # After creating the wing and setting span, chord, etc.
+        xsec = vsp.GetXSec(vsp.GetXSecSurf(htail_id, 0), 1)     # Get the actual XSec object
+        tc_parm = vsp.GetXSecParm(xsec, "ThickChord")      # Get the t/c parameter
+        vsp.SetParmVal(tc_parm, 0.2)                      # Set thickness-to-chord ratio (e.g., 15%)
+        xsec = vsp.GetXSec(vsp.GetXSecSurf(htail_id, 0), 0)     # Get the actual XSec object
+        tc_parm = vsp.GetXSecParm(xsec, "ThickChord")      # Get the t/c parameter
+        vsp.SetParmVal(tc_parm, 0.2)                      # Set thickness-to-chord ratio (e.g., 15%)
+
+        ### VTAIL ###
+        vtail_id = vsp.AddGeom("WING", "")
+
+        # Set vertical tail parameters
+        vsp.SetParmVal(vtail_id, "Root_Chord", "XSec_1", vtail_chord)
+        vsp.SetParmVal(vtail_id, "Tip_Chord", "XSec_1", vtail_chord/2)
+        vsp.SetParmVal(vtail_id, "Span", "XSec_1", vtail_span)            # Acts as "height" here
+        vsp.SetParmVal(vtail_id, "Sweep", "XSec_1", np.rad2deg(np.arctan(vtail_chord/2/vtail_span)))
+        vsp.SetParmVal(vtail_id, "Twist", "XSec_1", 0.0)
+
+        # Move it to the rear of the fuselage
+        vsp.SetParmVal(vtail_id, "X_Rel_Location", "XForm", fuse_len - 0.25)
+        vsp.SetParmVal(vtail_id, "Z_Rel_Location", "XForm", fuse_height / 2 - 0.25)
+
+        # Rotate to make it vertical (pitch = 90 degrees)
+        vsp.SetParmVal(vtail_id, "X_Rel_Rotation", "XForm", 90.0)
+
+        # Set airfoil shape and thickness/chord ratio
+        xsec = vsp.GetXSec(vsp.GetXSecSurf(vtail_id, 0), 1)
+        tc_parm = vsp.GetXSecParm(xsec, "ThickChord")
+        vsp.SetParmVal(tc_parm, 0.12)
+        xsec = vsp.GetXSec(vsp.GetXSecSurf(vtail_id, 0), 0)
+        tc_parm = vsp.GetXSecParm(xsec, "ThickChord")
+        vsp.SetParmVal(tc_parm, 0.12)
+
+        # Save file
+        fname = "dbf.vsp3"
+
+        vsp.SetVSP3FileName( fname )
+
+        vsp.Update()
+
+        #==== Save Vehicle to File ====//
+        print( "\tSaving vehicle file to: ", fname )
+        vsp.WriteVSPFile( vsp.GetVSPFileName(), SET_ALL )
+        vsp.ExportFile( "dbf.stl", SET_ALL, EXPORT_STL)
+
+        #==== Reset Geometry ====//
+        print( "--->Resetting VSP model to blank slate\n" )
+
+        vsp.ClearVSPModel()
+
+    
 
 if __name__ == "__main__":
-    import shutil
-    import pathlib
-    
-    class MeshGroup(om.Group):
-        def setup(self):
-            self.add_subsystem("mesh_exporter", DBFAircraftMeshExporter(), promotes=["*"])
-
-    # Set up OpenMDAO problem
     prob = om.Problem()
-    prob.model = MeshGroup()  # Use a Group wrapper
+
+    prob.model.add_subsystem(
+        'dbf_wing', DBFGeom(), promotes_inputs=['*'], promotes_outputs=['*']
+    )
 
     prob.setup()
 
-    # Debug print: available geoms and parms
-    print(vsp.FindGeom("HELLY", 0))
+    # Set values for mesh-driving variables
+    prob.set_val(Aircraft.Wing.ROOT_CHORD, val=20, units='inch')
+    prob.set_val(Aircraft.Wing.SPAN, val=4.667, units='ft')
+    prob.set_val(Aircraft.HorizontalTail.ROOT_CHORD, val=8.75, units='inch')
+    prob.set_val(Aircraft.HorizontalTail.SPAN, val=28.0, units='inch')
+    prob.set_val(Aircraft.VerticalTail.ROOT_CHORD, val=8.75, units='inch')
+    prob.set_val(Aircraft.VerticalTail.SPAN, val=1, units='ft')
+    prob.set_val(Aircraft.Fuselage.LENGTH, val=6, units='ft')
+    prob.set_val(Aircraft.Fuselage.AVG_WIDTH, val=5, units='inch')
+    prob.set_val(Aircraft.Fuselage.AVG_HEIGHT, val=4, units='inch')
 
-    for geom_id in vsp.FindGeomsWithName("Wing: Wing"):
-        print(f"Geom: {geom_id}")
 
-    wing_id = vsp.FindGeom("Wing: Helly", 0)  # Or use the correct name from VSP
-    if not wing_id:
-        raise RuntimeError("Wing not found!")
-
-    parms = vsp.GetParmVal(wing_id)
-    for pid in parms:
-        print(f"Parm: {vsp.GetParmName(pid)} | Group: {vsp.GetParmGroupName(pid)}")
-
-    # Set some example design variable values
-    prob.set_val("wing_span", 5.0, units="m")
-    prob.set_val("wing_chord", 0.75, units="m")
-
-    # Run premission (initial geometry/mesh export)
-    print("Generating initial mesh...")
-    prob.model.mesh_exporter.premission()
-
-    # Run compute (records outputs)
     prob.run_model()
-
-    # Simulate design update and postmission
-    print("Generating final mesh...")
-    prob.model.mesh_exporter.postmission()
-
-    # Print mesh file paths
-    initial_mesh = prob.get_val("initial_mesh_path")
-    final_mesh = prob.get_val("final_mesh_path")
-
-    print(f"Initial mesh exported to: {initial_mesh}")
-    print(f"Final mesh exported to:   {final_mesh}")
-
-    # Optional: check that files exist
-    for path in [initial_mesh, final_mesh]:
-        if pathlib.Path(path).exists():
-            print(f"Mesh file exists: {path}")
-        else:
-            print(f"Mesh file not found: {path}")
