@@ -1,20 +1,20 @@
 import openmdao.api as om
 
 from aviary.subsystems.subsystem_builder_base import SubsystemBuilderBase
-from aviary.examples.external_subsystems.OAS_weight.OAS_aero_analysis import OASAero
+from aviary.subsystems.aerodynamics.rc_aero import TotalAircraftAero
 from aviary.variable_info.variables import Aircraft, Dynamic
 from aviary.utils.aviary_values import AviaryValues
 
 
-class OASAeroBuilder(SubsystemBuilderBase):
-    def __init__(self, name='aero_analysis'):
+class RCAeroBuilder(SubsystemBuilderBase):
+    def __init__(self, name='rc_aero_analysis'):
         super().__init__(name)
 
     def build(self, aviary_inputs: AviaryValues, aviary_outputs: AviaryValues):
-        return OASAero(aviary_inputs=aviary_inputs, num_nodes=1)
+        return TotalAircraftAero(aviary_inputs=aviary_inputs, num_nodes=1)
 
     def build_mission(self, num_nodes, aviary_inputs, **kwargs):
-        return OASAero(
+        return TotalAircraftAero(
             aviary_inputs=aviary_inputs,
             num_nodes=num_nodes
         )
@@ -29,8 +29,7 @@ class OASAeroBuilder(SubsystemBuilderBase):
         return [
             Dynamic.Vehicle.DRAG,
             Dynamic.Vehicle.LIFT,
-            'aero_point_0.CL',
-            'aero_point_0.CD'
+            'OAS_aero.aero_point_0.CL',
         ]
     
     def get_parameters(self, aviary_inputs=None, **kwargs):
@@ -64,7 +63,26 @@ class OASAeroBuilder(SubsystemBuilderBase):
             'units': 'deg',
             'static_target': True
         }
-
+        params[Aircraft.Fuselage.MAX_HEIGHT] = {
+            'units': 'm',
+            'static_target': True
+        }
+        params[Aircraft.Fuselage.MAX_WIDTH] = {
+            'units': 'm',
+            'static_target': True
+        }
+        params[Aircraft.Fuselage.LENGTH] = {
+            'units': 'm',
+            'static_target': True
+        }
+        params[Aircraft.VerticalTail.SPAN] = {
+            'units': 'm',
+            'static_target': True
+        }
+        params[Aircraft.VerticalTail.ROOT_CHORD] = {
+            'units': 'm',
+            'static_target': True
+        }
         return params
 
     def needs_mission_solver(self, aviary_inputs):
