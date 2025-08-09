@@ -14,6 +14,12 @@ from aviary.variable_info.variable_meta_data import _MetaData
 
 class DBFGeom(om.ExplicitComponent):
 
+    def initialize(self):
+        self.options.declare(Aircraft.Wing.Dbf.AIRFOIL_PATH, types=str, allow_none=False)
+        self.options.declare(Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH, types=str, allow_none=False)
+        self.options.declare(Aircraft.VerticalTail.Dbf.AIRFOIL_PATH, types=str, allow_none=False)
+
+
     def setup(self):
         add_aviary_input(self, Aircraft.Wing.ROOT_CHORD, units='m')
         add_aviary_input(self, Aircraft.Wing.SPAN, units='m')
@@ -69,7 +75,6 @@ class DBFGeom(om.ExplicitComponent):
 
             return upper_pnts, lower_pnts
 
-
     def compute(self, inputs, outputs):
         wing_chord = inputs[Aircraft.Wing.ROOT_CHORD][0] * 10
         wing_span = inputs[Aircraft.Wing.SPAN][0] * 10
@@ -82,6 +87,9 @@ class DBFGeom(om.ExplicitComponent):
         fuse_len = inputs[Aircraft.Fuselage.LENGTH][0] * 10
         fuse_width = inputs[Aircraft.Fuselage.AVG_WIDTH][0] * 10
         fuse_height = inputs[Aircraft.Fuselage.AVG_HEIGHT][0] * 10
+        wing_airfoil_data_file = self.options[Aircraft.Wing.Dbf.AIRFOIL_PATH]  # stays string key
+        htail_airfoil_data_file = self.options[Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH]  # stays string key
+        vtail_airfoil_data_file = self.options[Aircraft.VerticalTail.Dbf.AIRFOIL_PATH]  # stays string key
 
         ### VSP THINGS ###
         # Add Fuselage Geom
@@ -174,9 +182,11 @@ class DBFGeom(om.ExplicitComponent):
 
         xsec_surf_id = vsp.GetXSecSurf(wid, 0)
 
-        upper_pnts, lower_pnts = self.load_airfoil_csv("aviary/examples/external_subsystems/dbf_based_mass/mh84-il.csv", 
-                                  delimiter=",", 
-                                  header=True)
+        upper_pnts, lower_pnts = self.load_airfoil_csv(
+            wing_airfoil_data_file, 
+            delimiter=",", 
+            header=True)
+        
         # Loop over all cross sections
         for xsec_index in range(vsp.GetNumXSec(xsec_surf_id)):
             vsp.ChangeXSecShape(xsec_surf_id, xsec_index, vsp.XS_FILE_AIRFOIL)
@@ -201,9 +211,11 @@ class DBFGeom(om.ExplicitComponent):
 
         xsec_surf_id = vsp.GetXSecSurf(htail_id, 0)
 
-        upper_pnts, lower_pnts = self.load_airfoil_csv("aviary/examples/external_subsystems/dbf_based_mass/n0012-il.csv", 
-                                  delimiter=",", 
-                                  header=True)
+        upper_pnts, lower_pnts = self.load_airfoil_csv(
+            htail_airfoil_data_file, 
+            delimiter=",", 
+            header=True)
+        
         # Loop over all cross sections
         for xsec_index in range(vsp.GetNumXSec(xsec_surf_id)):
             vsp.ChangeXSecShape(xsec_surf_id, xsec_index, vsp.XS_FILE_AIRFOIL)
@@ -232,9 +244,11 @@ class DBFGeom(om.ExplicitComponent):
 
         xsec_surf_id = vsp.GetXSecSurf(vtail_id, 0)
 
-        upper_pnts, lower_pnts = self.load_airfoil_csv("aviary/examples/external_subsystems/dbf_based_mass/n0012-il.csv", 
-                                  delimiter=",", 
-                                  header=True)
+        upper_pnts, lower_pnts = self.load_airfoil_csv(
+            vtail_airfoil_data_file, 
+            delimiter=",", 
+            header=True)
+        
         # Loop over all cross sections
         for xsec_index in range(vsp.GetNumXSec(xsec_surf_id)):
             vsp.ChangeXSecShape(xsec_surf_id, xsec_index, vsp.XS_FILE_AIRFOIL)
@@ -278,7 +292,18 @@ if __name__ == "__main__":
     prob = om.Problem()
 
     prob.model.add_subsystem(
-        'dbf_wing', DBFGeom(), promotes_inputs=['*'], promotes_outputs=['*']
+        'dbf_geom', DBFGeom(), promotes_inputs=['*'], promotes_outputs=['*']
+    )
+
+    paths = prob.model.dbf_geom
+    paths.options[Aircraft.Wing.Dbf.AIRFOIL_PATH] = (
+        r'aviary\examples\external_subsystems\dbf_based_mass\mh84-il.csv'
+    )
+    paths.options[Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH] = (
+        r'aviary\examples\external_subsystems\dbf_based_mass\n0012-il.csv'
+    )
+    paths.options[Aircraft.VerticalTail.Dbf.AIRFOIL_PATH] = (
+        r'aviary\examples\external_subsystems\dbf_based_mass\n0012-il.csv'
     )
 
     prob.setup()
