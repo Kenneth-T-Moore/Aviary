@@ -149,7 +149,7 @@ class DBFGeom(om.ExplicitComponent):
                     xsec = vsp.GetXSec(xsec_surf, j)
                     if vsp.GetXSecShape(xsec) != XS_ROUNDED_RECTANGLE:
                         vsp.ChangeXSecShape(xsec_surf, j, XS_ROUNDED_RECTANGLE)
-                        
+                         
                     xsec = vsp.GetXSec(xsec_surf, j)
                     wid = vsp.GetXSecParm(xsec, "RoundedRect_Width")
                     vsp.SetParmVal(wid, fuse_width)
