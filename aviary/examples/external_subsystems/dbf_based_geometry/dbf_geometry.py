@@ -10,6 +10,7 @@ except ImportError:
     HAS_OPENVSP = False
 
 import openmdao.api as om
+from openmdao.utils.cs_safe import abs as cs_abs
 
 from aviary.variable_info.functions import add_aviary_input, add_aviary_output
 from aviary.variable_info.variables import Aircraft
@@ -40,7 +41,42 @@ class DBFGeom(om.ExplicitComponent):
         add_aviary_output(self, Aircraft.VerticalTail.WETTED_AREA, units='m**2')
         add_aviary_output(self, Aircraft.Fuselage.WETTED_AREA, units='m**2')
 
-    def load_airfoil_csv(self, file_path, delimiter=',', header=False):
+    def setup_partials(self):
+        self.declare_partials(
+            of=Aircraft.Wing.WETTED_AREA,
+            wrt=[
+                Aircraft.Wing.SPAN,
+                Aircraft.Wing.ROOT_CHORD,
+            ],
+            method='fd',
+        )
+        self.declare_partials(
+            of=Aircraft.HorizontalTail.WETTED_AREA,
+            wrt=[
+                Aircraft.HorizontalTail.SPAN,
+                Aircraft.HorizontalTail.ROOT_CHORD,
+            ],
+            method='fd',
+        )
+        self.declare_partials(
+            of=Aircraft.VerticalTail.WETTED_AREA,
+            wrt=[
+                Aircraft.VerticalTail.SPAN,
+                Aircraft.VerticalTail.ROOT_CHORD,
+            ],
+            method='fd',
+        )
+        self.declare_partials(
+            of=Aircraft.Fuselage.WETTED_AREA,
+            wrt=[
+                Aircraft.Fuselage.LENGTH,
+                Aircraft.Fuselage.AVG_WIDTH,
+                Aircraft.Fuselage.AVG_HEIGHT,
+            ],
+            method='fd',
+        )
+
+    def vsp_load_airfoil_csv(self, file_path, delimiter=',', header=False):
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"Airfoil CSV file '{file_path}' not found.")
 
@@ -76,6 +112,34 @@ class DBFGeom(om.ExplicitComponent):
             lower_pnts = [vsp.vec3d(x, y, 0.0) for x, y in lower_coords]
 
             return upper_pnts, lower_pnts
+    
+    def load_airfoil_csv(self, file_path, delimiter=',', header=False):
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Airfoil CSV file '{file_path}' not found.")
+
+        skip = 1 if header else 0
+        data = np.loadtxt(file_path, delimiter=delimiter, skiprows=skip)
+
+        if data.shape[1] < 2:
+            raise ValueError('CSV must contain at least two columns for x and y coordinates.')
+
+        x = data[:, 0]
+        y = data[:, 1]
+
+        x_min = np.min(x)
+        x_max = np.max(x)
+        chord_length = x_max - x_min
+
+        if chord_length <= 0:
+            raise ValueError('Invalid airfoil: chord length must be > 0.')
+
+        x_normalized = (x - x_min) / chord_length
+        y_normalized = y / chord_length
+
+        return x_normalized, y_normalized
+
+    def shoelace_area(self, x, y):
+        return 0.5 * cs_abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
     def compute(self, inputs, outputs):
         wing_chord = inputs[Aircraft.Wing.ROOT_CHORD][0] * 10
@@ -93,6 +157,7 @@ class DBFGeom(om.ExplicitComponent):
         htail_airfoil_data_file = self.options[Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH]  # stays string key
         vtail_airfoil_data_file = self.options[Aircraft.VerticalTail.Dbf.AIRFOIL_PATH]  # stays string key
 
+        HAS_OPENVSP = False
         if HAS_OPENVSP:
             ### VSP THINGS ###
             # Add Fuselage Geom
@@ -185,7 +250,7 @@ class DBFGeom(om.ExplicitComponent):
 
             xsec_surf_id = vsp.GetXSecSurf(wid, 0)
 
-            upper_pnts, lower_pnts = self.load_airfoil_csv(
+            upper_pnts, lower_pnts = self.vsp_load_airfoil_csv(
                 wing_airfoil_data_file, 
                 delimiter=",", 
                 header=True)
@@ -214,7 +279,7 @@ class DBFGeom(om.ExplicitComponent):
 
             xsec_surf_id = vsp.GetXSecSurf(htail_id, 0)
 
-            upper_pnts, lower_pnts = self.load_airfoil_csv(
+            upper_pnts, lower_pnts = self.vsp_load_airfoil_csv(
                 htail_airfoil_data_file, 
                 delimiter=",", 
                 header=True)
@@ -232,9 +297,9 @@ class DBFGeom(om.ExplicitComponent):
 
             # Set vertical tail parameters
             vsp.SetParmVal(vtail_id, "Root_Chord", "XSec_1", vtail_chord)
-            vsp.SetParmVal(vtail_id, "Tip_Chord", "XSec_1", vtail_chord/2)
+            vsp.SetParmVal(vtail_id, "Tip_Chord", "XSec_1", vtail_chord)
             vsp.SetParmVal(vtail_id, "Span", "XSec_1", vtail_span)            # Acts as "height" here
-            vsp.SetParmVal(vtail_id, "Sweep", "XSec_1", np.rad2deg(np.arctan(vtail_chord/2/vtail_span)))
+            vsp.SetParmVal(vtail_id, "Sweep", "XSec_1", 0) # np.rad2deg(np.arctan(vtail_chord/2/vtail_span)))
             vsp.SetParmVal(vtail_id, "Twist", "XSec_1", 0.0)
 
             # Move it to the rear of the fuselage
@@ -247,7 +312,7 @@ class DBFGeom(om.ExplicitComponent):
 
             xsec_surf_id = vsp.GetXSecSurf(vtail_id, 0)
 
-            upper_pnts, lower_pnts = self.load_airfoil_csv(
+            upper_pnts, lower_pnts = self.vsp_load_airfoil_csv(
                 vtail_airfoil_data_file, 
                 delimiter=",", 
                 header=True)
@@ -289,6 +354,44 @@ class DBFGeom(om.ExplicitComponent):
 
             vsp.ClearVSPModel()
 
+        else:
+            ### FUSE ###
+            fuse_wet_area = 2 * (fuse_len + fuse_height + fuse_width)
+
+            ### WING ###
+            x_norm, y_norm = self.load_airfoil_csv(wing_airfoil_data_file, header=True)
+            # Calculate total length along airfoil curve (all points in order)
+            length_norm = np.sum(np.sqrt(np.diff(x_norm)**2 + np.diff(y_norm)**2))
+            # Convert to physical length
+            length = length_norm * wing_chord
+            wing_cs_area = self.shoelace_area(x_norm,y_norm) * wing_chord**2
+            # Wetted area approx = length of curve * span
+            wing_wet_area = length * wing_span + 2 * wing_cs_area
+
+            ### HTAIL ###
+            x_norm, y_norm = self.load_airfoil_csv(htail_airfoil_data_file, header=True)
+            # Calculate total length along airfoil curve (all points in order)
+            length_norm = np.sum(np.sqrt(np.diff(x_norm)**2 + np.diff(y_norm)**2))
+            # Convert to physical length
+            length = length_norm * htail_chord
+            htail_cs_area = self.shoelace_area(x_norm,y_norm) * htail_chord**2
+            # Wetted area approx = length of curve * span
+            htail_wet_area = length * htail_span + 2 * htail_cs_area
+
+            ### VTAIL ###
+            x_norm, y_norm = self.load_airfoil_csv(vtail_airfoil_data_file, header=True)
+            # Calculate total length along airfoil curve (all points in order)
+            length_norm = np.sum(np.sqrt(np.diff(x_norm)**2 + np.diff(y_norm)**2))
+            # Convert to physical length
+            length = length_norm * vtail_chord
+            vtail_cs_area = self.shoelace_area(x_norm,y_norm) * vtail_chord**2
+            # Wetted area approx = length of curve * span
+            vtail_wet_area = length * vtail_span + vtail_cs_area
+
+            outputs[Aircraft.Fuselage.WETTED_AREA] = fuse_wet_area / 100
+            outputs[Aircraft.Wing.WETTED_AREA] = wing_wet_area / 100
+            outputs[Aircraft.HorizontalTail.WETTED_AREA] = htail_wet_area / 100
+            outputs[Aircraft.VerticalTail.WETTED_AREA] = vtail_wet_area / 100
     
 
 if __name__ == "__main__":
