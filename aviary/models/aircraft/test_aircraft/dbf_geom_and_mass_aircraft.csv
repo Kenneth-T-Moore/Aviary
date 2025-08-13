@@ -70,10 +70,9 @@ aircraft:fuel:num_tanks,7,unitless
 aircraft:fuel:total_capacity,45694.0,lbm
 aircraft:fuel:unusable_fuel_mass_scaler,0.0,unitless
 aircraft:furnishings:mass_scaler,0.0,unitless
-aircraft:fuselage:length,128.0,ft
 aircraft:fuselage:mass_scaler,0.0,unitless
-aircraft:fuselage:max_height,13.17,ft
-aircraft:fuselage:max_width,12.33,ft
+aircraft:fuselage:max_height,4,inch
+aircraft:fuselage:max_width,5,inch
 aircraft:fuselage:military_cargo_floor,False,unitless
 aircraft:fuselage:num_fuselages,1,unitless
 aircraft:fuselage:passenger_compartment_length,85.5,ft
@@ -139,9 +138,9 @@ aircraft:wing:var_sweep_mass_penalty,0.0,unitless
 aircraft:wing:wetted_area_scaler,1.0,unitless
 aircraft:battery:mass,0.707,kg
 aircraft:engine:motor:mass,0.288,kg
-aircraft:fuselage:length,4.0,ft
-aircraft:fuselage:average_height,5.0,inch
-aircraft:fuselage:average_width,4.0,inch
+aircraft:fuselage:length,6.0,ft
+aircraft:fuselage:average_height,4.0,inch
+aircraft:fuselage:average_width,5.0,inch
 aircraft:vertical_tail:root_chord,8.75,inch
 aircraft:vertical_tail:span,1.0,ft
 aircraft:horizontal_tail:root_chord,8.75,inch

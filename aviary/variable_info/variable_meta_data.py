@@ -3881,7 +3881,6 @@ add_meta_data(
     desc='Height of fuselage (assumed rectangular prism shape)',
     default_value=12,
     meta_data=_MetaData,
-    option=True,
 )
 
 add_meta_data(
@@ -3890,7 +3889,6 @@ add_meta_data(
     desc='Width of fuselage (assumed rectangular prism shape)',
     default_value=12,
     meta_data=_MetaData,
-    option=True,
 )
 
 add_meta_data(

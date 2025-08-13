@@ -9,6 +9,8 @@ try:
 except ImportError:
     HAS_OPENVSP = False
 
+# HAS_OPENVSP = False
+
 import openmdao.api as om
 from openmdao.utils.cs_safe import abs as cs_abs
 
@@ -157,7 +159,8 @@ class DBFGeom(om.ExplicitComponent):
         htail_airfoil_data_file = self.options[Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH]  # stays string key
         vtail_airfoil_data_file = self.options[Aircraft.VerticalTail.Dbf.AIRFOIL_PATH]  # stays string key
 
-        HAS_OPENVSP = False
+        print(f"Wing Chord:{wing_chord}, Wing Span:{wing_span}")
+
         if HAS_OPENVSP:
             ### VSP THINGS ###
             # Add Fuselage Geom
@@ -330,14 +333,11 @@ class DBFGeom(om.ExplicitComponent):
 
             vsp.Update()
 
-            #==== Save Vehicle to File ====//
-            print( "\tSaving vehicle file to: ", fname )
-            vsp.WriteVSPFile( vsp.GetVSPFileName(), SET_ALL )
-            vsp.ExportFile( "dbf.stl", SET_ALL, EXPORT_STL)
-
-            mesh_id = vsp.ComputeCompGeom(vsp.SET_ALL, False, COMP_GEOM_TXT_TYPE)
+            mesh_id = vsp.ComputeCompGeom(vsp.SET_ALL, False, 0) # COMP_GEOM_TXT_TYPE)
             comp_geom_res_id = vsp.FindLatestResultsID("Comp_Geom")
             areas = vsp.GetDoubleResults(comp_geom_res_id, "Wet_Area")
+
+            # print(areas)
 
             fuse_wet_area = areas[0] / 100
             wing_wet_area = areas[1] / 100
@@ -348,6 +348,11 @@ class DBFGeom(om.ExplicitComponent):
             outputs[Aircraft.Wing.WETTED_AREA] = wing_wet_area
             outputs[Aircraft.HorizontalTail.WETTED_AREA] = htail_wet_area
             outputs[Aircraft.VerticalTail.WETTED_AREA] = vtail_wet_area
+
+            # #==== Save Vehicle to File ====//
+            # print( "\tSaving vehicle file to: ", fname )
+            # vsp.WriteVSPFile( vsp.GetVSPFileName(), SET_ALL )
+            # vsp.ExportFile( "dbf.stl", SET_ALL, EXPORT_STL)
 
             #==== Reset Geometry ====//
             print( "--->Resetting VSP model to blank slate\n" )
@@ -430,11 +435,11 @@ if __name__ == "__main__":
     prob.run_model()
 
     fuse_wet_area = prob.get_val(Aircraft.Fuselage.WETTED_AREA, units='inch**2')
-    wing_wet_area = prob.get_val(Aircraft.Wing.WETTED_AREA, units='inch**2')
+    wing_wet_area = prob.get_val(Aircraft.Wing.WETTED_AREA, units='m**2')
     htail_wet_area = prob.get_val(Aircraft.HorizontalTail.WETTED_AREA, units='inch**2')
     vtail_wet_area = prob.get_val(Aircraft.VerticalTail.WETTED_AREA, units='inch**2')
 
-    print(f"Fuselage Wetted Area: {float(fuse_wet_area):.3f} inch**2")
+    # print(f"Fuselage Wetted Area: {float(fuse_wet_area):.3f} inch**2")
     print(f"Wing Wetted Area: {float(wing_wet_area):.3f} inch**2")
-    print(f"HTail Wetted Area: {float(htail_wet_area):.3f} inch**2")
-    print(f"VTail Wetted Area: {float(vtail_wet_area):.3f} inch**2")
+    # print(f"HTail Wetted Area: {float(htail_wet_area):.3f} inch**2")
+    # print(f"VTail Wetted Area: {float(vtail_wet_area):.3f} inch**2")

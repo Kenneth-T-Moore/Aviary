@@ -3,7 +3,7 @@ import openmdao.api as om
 import aviary as av
 from aviary.variable_info.variables import Aircraft
 from aviary.subsystems.subsystem_builder_base import SubsystemBuilderBase
-from aviary.examples.external_subsystems.dbf_based_geometry.dbf_geometry_premission import MassPremission
+from aviary.examples.external_subsystems.dbf_based_geometry.dbf_geometry_premission import GeomPremission
 
 
 class DBFGeometryBuilder(SubsystemBuilderBase):

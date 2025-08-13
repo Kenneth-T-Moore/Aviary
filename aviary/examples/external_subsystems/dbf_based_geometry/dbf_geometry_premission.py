@@ -5,7 +5,7 @@ from aviary.examples.external_subsystems.dbf_based_geometry.dbf_geometry import 
 from aviary.variable_info.variables import Aircraft
 
 
-class MassPremission(om.Group):
+class GeomPremission(om.Group):
     def setup(self):
         self.add_subsystem(
             'dbf_geom', 
