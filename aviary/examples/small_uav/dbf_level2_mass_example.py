@@ -44,6 +44,7 @@ if __name__ == '__main__':
     # print(f"Battery Mass: {prob.get_val(av.Aircraft.Battery.MASS):.4f} kg")
     # print(f"Motor Mass: {prob.get_val(av.Aircraft.Engine.Motor.MASS):.4f} kg")
     print('Wing Mass', prob.get_val(av.Aircraft.Wing.MASS))
+    print('V tail mass', prob.get_val(av.Aircraft.VerticalTail.MASS))
     print('Horizontal Tail Mass', prob.get_val(av.Aircraft.HorizontalTail.MASS))
     print('Vertical Tail Mass', prob.get_val(av.Aircraft.VerticalTail.MASS))
     print('Fuselage Mass', prob.get_val(av.Aircraft.Fuselage.MASS))

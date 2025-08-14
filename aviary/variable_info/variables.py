@@ -140,7 +140,8 @@ class Aircraft:
         COCKPIT_CONTROL_MASS_COEFFICIENT = 'aircraft:design:cockpit_control_mass_coefficient'
         COMPUTE_HTAIL_VOLUME_COEFF = 'aircraft:design:compute_htail_volume_coeff'
         COMPUTE_VTAIL_VOLUME_COEFF = 'aircraft:design:compute_vtail_volume_coeff'
-        DRAG_COEFFICIENT_INCREMENT = 'aircraft:design:drag_increment'
+        DRAG_COEFFICIENT_INCREMENT = 'aircraft:design:drag_coeff_increment'
+        DRAG_DIVERGENCE_SHIFT = 'aircraft:design:drag_divergence_shift'
         DRAG_POLAR = 'aircraft:design:drag_polar'
 
         EMERGENCY_EQUIPMENT_MASS = 'aircraft:design:emergency_equipment_mass'
@@ -180,8 +181,6 @@ class Aircraft:
 
         SUBSONIC_DRAG_COEFF_FACTOR = 'aircraft:design:subsonic_drag_coeff_factor'
 
-        SUPERCRITICAL_DIVERGENCE_SHIFT = 'aircraft:design:supercritical_drag_shift'
-
         SUPERSONIC_DRAG_COEFF_FACTOR = 'aircraft:design:supersonic_drag_coeff_factor'
 
         SYSTEMS_EQUIP_MASS = 'aircraft:design:systems_equip_mass'
@@ -193,6 +192,7 @@ class Aircraft:
         ULF_CALCULATED_FROM_MANEUVER = 'aircraft:design:ulf_calculated_from_maneuver'
         USE_ALT_MASS = 'aircraft:design:use_alt_mass'
         WETTED_AREAS = 'aircraft:design:wetted_areas'
+        WING_LOADING = 'aircraft:design:wing_loading'
         ZERO_FUEL_MASS = 'aircraft:design:zero_fuel_mass'
         ZERO_LIFT_DRAG_COEFF_FACTOR = 'aircraft:design:zero_lift_drag_coeff_factor'
 
@@ -259,9 +259,11 @@ class Aircraft:
             MASS = 'aircraft:engine:motor:mass'
             TORQUE_MAX = 'aircraft:engine:motor:torque_max'
             IDLE_CURRENT = 'aircraft:engine:motor:idle_current'
-            PEAK_CURRENT = 'aircraft:engine:motor:peak_current'
+            MAX_CONT_CURRENT = 'aircraft:engine:motor:max_cont_current'
             RESISTANCE = 'aircraft:engine:motor:resistance'
             KV = 'aircraft:engine:motor:kv'
+            KV_EQ_SLOPE = 'aircraft:engine:motor:kv_eq_slope'
+            KV_EQ_INT = 'aircraft:engine:motor:kv_eq_int'
 
         class Propeller:
             ACTIVITY_FACTOR = 'aircraft:engine:propeller:activity_factor'
@@ -337,7 +339,9 @@ class Aircraft:
         LAMINAR_FLOW_UPPER = 'aircraft:fuselage:laminar_flow_upper'
         LENGTH = 'aircraft:fuselage:length'
         LENGTH_TO_DIAMETER = 'aircraft:fuselage:length_to_diameter'
-        LIFT_COEFFICENT_RATIO_BODY_TO_WING = 'aircraft:fuselage:lift_coefficient_ratio_body_to_wing'
+        LIFT_COEFFICIENT_RATIO_BODY_TO_WING = (
+            'aircraft:fuselage:lift_coefficient_ratio_body_to_wing'
+        )
         LIFT_CURVE_SLOPE_MACH0 = 'aircraft:fuselage:lift_curve_slope_mach0'
         MASS = 'aircraft:fuselage:mass'
         MASS_COEFFICIENT = 'aircraft:fuselage:mass_coefficient'
@@ -595,6 +599,7 @@ class Aircraft:
         COMPOSITE_FRACTION = 'aircraft:wing:composite_fraction'
         CONTROL_SURFACE_AREA = 'aircraft:wing:control_surface_area'
         CONTROL_SURFACE_AREA_RATIO = 'aircraft:wing:control_surface_area_ratio'
+        DETAILED_WING = 'aircraft:wing:detailed_wing'
         DIHEDRAL = 'aircraft:wing:dihedral'
         ENG_POD_INERTIA_FACTOR = 'aircraft:wing:eng_pod_inertia_factor'
         EXPOSED_AREA = 'aircraft:wing:exposed_area'
@@ -628,7 +633,6 @@ class Aircraft:
         LOAD_DISTRIBUTION_CONTROL = 'aircraft:wing:load_distribution_control'
         LOAD_FRACTION = 'aircraft:wing:load_fraction'
         LOAD_PATH_SWEEP_DIST = 'aircraft:wing:load_path_sweep_dist'
-        LOADING = 'aircraft:wing:loading'
         LOADING_ABOVE_20 = 'aircraft:wing:loading_above_20'
         MASS = 'aircraft:wing:mass'
         MASS_COEFFICIENT = 'aircraft:wing:mass_coefficient'
@@ -672,7 +676,6 @@ class Aircraft:
         THICKNESS_TO_CHORD_TIP = 'aircraft:wing:thickness_to_chord_tip'
         THICKNESS_TO_CHORD_UNWEIGHTED = 'aircraft:wing:thickness_to_chord_unweighted'
         ULTIMATE_LOAD_FACTOR = 'aircraft:wing:ultimate_load_factor'
-        USE_DETAILED_MASS = 'aircraft:wing:use_detailed_mass'
         VAR_SWEEP_MASS_PENALTY = 'aircraft:wing:var_sweep_mass_penalty'
         VERTICAL_MOUNT_LOCATION = 'aircraft:wing:vertical_mount_location'
         WETTED_AREA = 'aircraft:wing:wetted_area'
@@ -752,6 +755,8 @@ class Dynamic:
 
         class Propulsion:
             # variables specific to the propulsion subsystem
+            CURRENT = 'current_flow'
+            CURRENT_CON = 'current_constraint'
             ELECTRIC_POWER_IN = 'electric_power_in'
             ELECTRIC_POWER_IN_TOTAL = 'electric_power_in_total'
             # EXIT_AREA = 'exit_area'
@@ -901,5 +906,6 @@ class Settings:
     AERODYNAMICS_METHOD = 'settings:aerodynamics_method'
     EQUATIONS_OF_MOTION = 'settings:equations_of_motion'
     MASS_METHOD = 'settings:mass_method'
+    PAYLOAD_RANGE = 'settings:payload_range'
     PROBLEM_TYPE = 'settings:problem_type'
     VERBOSITY = 'settings:verbosity'

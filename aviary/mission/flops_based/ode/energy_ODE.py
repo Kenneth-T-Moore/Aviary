@@ -3,12 +3,9 @@ import openmdao.api as om
 
 from aviary.mission.base_ode import BaseODE as _BaseODE
 from aviary.mission.flops_based.ode.mission_EOM import MissionEOM
-from aviary.mission.gasp_based.ode.time_integration_base_classes import (
-    add_SGM_required_inputs,
-    add_SGM_required_outputs,
-)
+
 from aviary.subsystems.propulsion.throttle_allocation import ThrottleAllocator
-from aviary.variable_info.enums import AnalysisScheme, SpeedType, ThrottleAllocation
+from aviary.variable_info.enums import SpeedType, ThrottleAllocation
 from aviary.variable_info.variables import Aircraft, Dynamic, Mission
 
 
@@ -20,7 +17,7 @@ class EnergyODE(_BaseODE):
 
         self.options.declare(
             'use_actual_takeoff_mass',
-            default=False,
+            default=True, #TODO alex find why this doesnt work
             desc='flag to use actual takeoff mass in the climb phase, otherwise assume 100 kg fuel burn',
         )
         # TODO throttle enforcement & allocation should be moved to BaseODE for
@@ -28,8 +25,10 @@ class EnergyODE(_BaseODE):
         self.options.declare(
             'throttle_enforcement',
             default='path_constraint',
-            values=['path_constraint', 'boundary_constraint', 'bounded', None],
-            desc='flag to enforce throttle constraints on the path or at the segment boundaries or using solver bounds',
+            values=['path_constraint', 'boundary_constraint', 'bounded', 'control', None],
+            desc='Flag to enforce engine throttle bounds as path constraints, boundary '
+            'constraints, solver bounds. You can also select "control" to turn throttle into a '
+            'control, which allows you to assign a value or let the optimizer choose it.',
         )
         self.options.declare(
             'throttle_allocation',
@@ -41,16 +40,8 @@ class EnergyODE(_BaseODE):
     def setup(self):
         options = self.options
         nn = options['num_nodes']
-        analysis_scheme = options['analysis_scheme']
         aviary_options = options['aviary_options']
         num_engine_type = len(aviary_options.get_val(Aircraft.Engine.NUM_ENGINES))
-
-        if analysis_scheme is AnalysisScheme.SHOOTING:
-            SGM_required_inputs = {
-                't_curr': {'units': 's'},
-                Dynamic.Mission.DISTANCE: {'units': 'm'},
-            }
-            add_SGM_required_inputs(self, SGM_required_inputs)
 
         self.add_atmosphere(input_speed_type=SpeedType.MACH)
 
@@ -71,11 +62,20 @@ class EnergyODE(_BaseODE):
             promotes_outputs=[('velocity_rate', Dynamic.Mission.VELOCITY_RATE)],
         )
 
+        throttle_enforcement = options['throttle_enforcement']
+
         sub1 = self.add_subsystem('solver_sub', om.Group(), promotes=['*'])
 
-        self.add_core_subsystems(solver_group=sub1)
+        if throttle_enforcement == 'control':
+            solver_group = None
+            core_needs_solver = False
+        else:
+            solver_group = sub1
+            core_needs_solver = True
 
-        self.add_external_subsystems(solver_group=sub1)
+        self.add_core_subsystems(solver_group=solver_group)
+
+        ext_needs_solver = self.add_external_subsystems(solver_group=sub1)
 
         sub1.add_subsystem(
             name='mission_EOM',
@@ -95,9 +95,24 @@ class EnergyODE(_BaseODE):
                 'thrust_required',
             ],
         )
+        self.add_subsystem(
+            'thrust_balance',
+            om.ExecComp(
+                'thrust_con = thrust - thrust_required',
+                thrust={'val':np.zeros(nn), 'units': 'N'},
+                thrust_required={'val':np.zeros(nn), 'units': 'N'},
+                thrust_con={'val':np.zeros(nn), 'units': 'N'}
+            ),
+            promotes_inputs=[
+                ('thrust', Dynamic.Vehicle.Propulsion.THRUST_TOTAL),
+                'thrust_required'], 
+            promotes_outputs=['thrust_con']
+        )
 
         # THROTTLE Section
         # TODO: Split this out into a function that can be used by the other ODEs.
+        # TODO: Need a thrust residual ref in the phase_info.
+        thrust_res_ref = 1.0 #TODO Alex mod from 1.0e6 ADD AS OPTION
         if num_engine_type > 1:
             # Multi Engine
 
@@ -111,7 +126,7 @@ class EnergyODE(_BaseODE):
                     rhs_name=Dynamic.Vehicle.Propulsion.THRUST_TOTAL,
                     eq_units='lbf',
                     normalize=False,
-                    res_ref=1.0e6,
+                    res_ref=thrust_res_ref,
                 ),
                 promotes_inputs=['*'],
                 promotes_outputs=['*'],
@@ -129,32 +144,52 @@ class EnergyODE(_BaseODE):
         else:
             # Single Engine
 
-            # Add a balance comp to compute throttle based on the required thrust.
-            sub1.add_subsystem(
-                name='throttle_balance',
-                subsys=om.BalanceComp(
-                    name=Dynamic.Vehicle.Propulsion.THROTTLE,
-                    units='unitless',
-                    val=np.ones((nn,)),
-                    lhs_name='thrust_required',
-                    rhs_name=Dynamic.Vehicle.Propulsion.THRUST_TOTAL,
-                    eq_units='lbf',
-                    normalize=False,
-                    lower=0.0 if options['throttle_enforcement'] == 'bounded' else None,
-                    upper=1.0 if options['throttle_enforcement'] == 'bounded' else None,
-                    res_ref=1.0e6,
-                ),
-                promotes_inputs=['*'],
-                promotes_outputs=['*'],
-            )
+            if throttle_enforcement == 'control':
+                self.add_subsystem(
+                    'throttle_balance',
+                    om.ExecComp(
+                        'thrust_residual=thrust_required-thrust',
+                        thrust={'val': np.ones((nn,)), 'units': 'lbf'},
+                        thrust_required={'val': np.ones((nn,)), 'units': 'lbf'},
+                        thrust_residual={'val': np.ones((nn,)), 'units': 'lbf'},
+                        has_diag_partials=True,
+                    ),
+                    promotes_inputs=[
+                        ('thrust', Dynamic.Vehicle.Propulsion.THRUST_TOTAL),
+                        'thrust_required',
+                    ],
+                    promotes_outputs=['*'],
+                )
+                self.add_constraint('thrust_residual', ref=thrust_res_ref, equals=0.0)
+            else:
+                # Add a balance comp to compute throttle based on the required thrust.
+                sub1.add_subsystem(
+                    name='throttle_balance',
+                    subsys=om.BalanceComp(
+                        name=Dynamic.Vehicle.Propulsion.THROTTLE,
+                        units='unitless',
+                        val=np.ones((nn,)),
+                        lhs_name='thrust_required',
+                        rhs_name=Dynamic.Vehicle.Propulsion.THRUST_TOTAL,
+                        eq_units='lbf',
+                        normalize=False,
+                        lower=0.0 if throttle_enforcement == 'bounded' else None,
+                        upper=1.0 if throttle_enforcement == 'bounded' else None,
+                        res_ref=thrust_res_ref,
+                    ),
+                    promotes_inputs=['*'],
+                    promotes_outputs=['*'],
+                )
 
-            self.set_input_defaults(Dynamic.Vehicle.Propulsion.THROTTLE, val=1.0, units='unitless')
-
+        self.set_input_defaults(Dynamic.Vehicle.Propulsion.THROTTLE, val=np.ones(nn) * 0.7, units='unitless')
+        ############## ALEX ADDITION ###############
+        self.set_input_defaults(Dynamic.Atmosphere.MACH_RATE, val=np.zeros(nn))
+        ############## ALEX ADDITION ###############
         self.set_input_defaults(Dynamic.Atmosphere.MACH, val=np.ones(nn), units='unitless')
         self.set_input_defaults(Dynamic.Vehicle.MASS, val=np.ones(nn), units='kg')
         self.set_input_defaults(Dynamic.Mission.VELOCITY, val=np.ones(nn), units='m/s')
         self.set_input_defaults(Dynamic.Mission.ALTITUDE, val=np.ones(nn), units='m')
-        self.set_input_defaults(Dynamic.Mission.ALTITUDE_RATE, val=np.ones(nn), units='m/s')
+        self.set_input_defaults(Dynamic.Mission.ALTITUDE_RATE, val=np.zeros(nn), units='m/s')
 
         if options['use_actual_takeoff_mass']:
             exec_comp_string = 'initial_mass_residual = initial_mass - mass[0]'
@@ -165,39 +200,34 @@ class EnergyODE(_BaseODE):
 
         # Experimental: Add a component to constrain the initial mass to be equal
         # to design gross weight.
-        initial_mass_residual_constraint = om.ExecComp(
-            exec_comp_string,
-            initial_mass={'units': 'kg'},
-            mass={'units': 'kg', 'shape': (nn,)},
-            initial_mass_residual={'units': 'kg', 'res_ref': 1.0e5},
-        )
+        # initial_mass_residual_constraint = om.ExecComp(
+        #     exec_comp_string,
+        #     initial_mass={'units': 'kg'},
+        #     mass={'units': 'kg', 'shape': (nn,)},
+        #     initial_mass_residual={'units': 'kg', 'res_ref': 1.0},
+        # )
 
-        self.add_subsystem(
-            'initial_mass_residual_constraint',
-            initial_mass_residual_constraint,
-            promotes_inputs=[
-                ('initial_mass', initial_mass_string),
-                ('mass', Dynamic.Vehicle.MASS),
-            ],
-            promotes_outputs=['initial_mass_residual'],
-        )
+        # self.add_subsystem(
+        #     'initial_mass_residual_constraint',
+        #     initial_mass_residual_constraint,
+        #     promotes_inputs=[
+        #         ('initial_mass', initial_mass_string),
+        #         ('mass', Dynamic.Vehicle.MASS),
+        #     ],
+        #     promotes_outputs=['initial_mass_residual'],
+        # )
 
-        if analysis_scheme is AnalysisScheme.SHOOTING:
-            SGM_required_outputs = {
-                Dynamic.Mission.ALTITUDE_RATE: {'units': 'm/s'},
-            }
-            add_SGM_required_outputs(self, SGM_required_outputs)
+        if core_needs_solver or ext_needs_solver:
+            sub1.nonlinear_solver = om.NewtonSolver(
+                solve_subsystems=True,
+                atol=1.0e-10,
+                rtol=1.0e-10,
+            )
+            print_level = 2
 
-        print_level = 0 if analysis_scheme is AnalysisScheme.SHOOTING else 2
-
-        sub1.nonlinear_solver = om.NewtonSolver(
-            solve_subsystems=True,
-            atol=1.0e-10,
-            rtol=1.0e-10,
-        )
-        sub1.nonlinear_solver.linesearch = om.BoundsEnforceLS()
-        sub1.linear_solver = om.DirectSolver(assemble_jac=True)
-        sub1.nonlinear_solver.options['err_on_non_converge'] = True
-        sub1.nonlinear_solver.options['iprint'] = print_level
+            sub1.nonlinear_solver.linesearch = om.BoundsEnforceLS()
+            sub1.linear_solver = om.DirectSolver(assemble_jac=True)
+            sub1.nonlinear_solver.options['err_on_non_converge'] = True
+            sub1.nonlinear_solver.options['iprint'] = print_level
 
         self.options['auto_order'] = True

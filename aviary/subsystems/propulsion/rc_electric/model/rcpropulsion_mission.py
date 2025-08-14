@@ -13,7 +13,7 @@ class RCPropMission(om.Group):
     def initialize(self):
         self.options.declare('num_nodes', types=int)
         self.options.declare(
-            'aviary_inputs',
+            'aviary_options',
             types=AviaryValues,
             desc='collection of Aircraft/Mission specific options',
             default=None,
@@ -28,7 +28,8 @@ class RCPropMission(om.Group):
             Battery(num_nodes=nn), 
             promotes_inputs=[
                 Aircraft.Battery.VOLTAGE,  
-                Aircraft.Battery.RESISTANCE
+                Aircraft.Battery.RESISTANCE,
+                Dynamic.Vehicle.Propulsion.CURRENT,
             ]
         )
 
@@ -36,19 +37,22 @@ class RCPropMission(om.Group):
             'esc', 
             ElectronicSpeedController(num_nodes=nn), 
             promotes_inputs=[
-                Dynamic.Vehicle.Propulsion.THROTTLE
-            ]
+                Dynamic.Vehicle.Propulsion.THROTTLE,
+                Dynamic.Vehicle.Propulsion.CURRENT
+            ],
         )
 
         self.add_subsystem('motor', Motor(num_nodes=nn), 
             promotes_inputs=[
                 Aircraft.Engine.Motor.IDLE_CURRENT, 
-                Aircraft.Engine.Motor.PEAK_CURRENT,
+                Aircraft.Engine.Motor.MAX_CONT_CURRENT,
                 Aircraft.Engine.Motor.RESISTANCE, 
                 Aircraft.Engine.Motor.KV,
+                Dynamic.Vehicle.Propulsion.CURRENT,
                 ],
             promotes_outputs=[
                 Dynamic.Vehicle.Propulsion.RPM,
+                Dynamic.Vehicle.Propulsion.CURRENT_CON,
                 ]
         )
 
@@ -77,37 +81,55 @@ class RCPropMission(om.Group):
                 Dynamic.Vehicle.Propulsion.RPM, 
                 'ct', 
                 'cp', 
-                Aircraft.Engine.NUM_ENGINES, 
+                # Aircraft.Engine.NUM_ENGINES, 
                 Dynamic.Atmosphere.DENSITY
                 ],
             promotes_outputs=[
                 Dynamic.Vehicle.Propulsion.PROP_POWER, 
-                Dynamic.Vehicle.Propulsion.THRUST
+                Dynamic.Vehicle.Propulsion.THRUST,
+                # Dynamic.Vehicle.Propulsion.THRUST_MAX,
                 ]
         )
-
         self.add_subsystem(
-            'power_net', 
+            'power_summation', 
             PowerResiduals(num_nodes=nn), 
             promotes_inputs=[
                 Dynamic.Vehicle.Propulsion.PROP_POWER
-                ]
+                ],
+            promotes_outputs=[
+                'power_net'
+                # Dynamic.Vehicle.Propulsion.CURRENT,
+            ]
             )
-
+        
         self.connect('battery.voltage_out', 'esc.voltage_in')
         self.connect('esc.voltage_out', 'motor.voltage_in')
-        # self.connect('esc.current_out', 'motor.current')
+        self.connect('esc.current_out', 'motor.current')
+        #TODO Alex from phase builder base import add_control
+        # self.add_control()
 
+        self.add_design_var(Dynamic.Vehicle.Propulsion.CURRENT, lower=0, scaler=1e-2, units='A')
 
-        self.connect('battery.power', 'power_net.power_batt')
-        self.connect('esc.power', 'power_net.power_esc')
-        self.connect('motor.power', 'power_net.power_motor')
-        self.connect('power_net.current', ['battery.current', 'esc.current_in', 'motor.current'])
+        self.add_constraint('power_net', equals=0, ref=1e3)
+        # self.add_constraint(Dynamic.Vehicle.Propulsion.CURRENT, lower=0)
+        self.add_constraint(Dynamic.Vehicle.Propulsion.CURRENT_CON, upper=0, ref=1e2)
+        self.add_constraint(Dynamic.Vehicle.Propulsion.RPM, lower=1, upper=7500, ref=1e3, units='rpm')
 
-        self.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
-        self.nonlinear_solver.options["maxiter"] = 30
-        self.nonlinear_solver.options["err_on_non_converge"] = False
-        self.nonlinear_solver.linesearch = om.BoundsEnforceLS()
-        self.nonlinear_solver.linesearch.options["bound_enforcement"] = "scalar"
-        self.nonlinear_solver.linesearch.options["print_bound_enforce"] = True
-        self.linear_solver = om.DirectSolver(assemble_jac=True)#, rhs_checking =True)
+        #Constraints to prevent ill-fated surrogate model predictions
+        self.add_constraint('ct', lower=0, ref=1e-2, units='unitless')
+        self.add_constraint('cp', lower=0.0034, ref=1e-2, units='unitless')
+
+        self.connect('battery.power', 'power_summation.power_batt')
+        self.connect('esc.power', 'power_summation.power_esc')
+        self.connect('motor.power', 'power_summation.power_motor')
+        # self.connect('power_net.current', ['battery.current', 'esc.current_in', 'motor.current'])
+
+        # self.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
+        # self.nonlinear_solver.options["maxiter"] = 15
+        # self.nonlinear_solver.options["err_on_non_converge"] = False
+        # self.nonlinear_solver.linesearch = om.BoundsEnforceLS()
+        # self.nonlinear_solver.linesearch.options["bound_enforcement"] = "scalar"
+        # self.nonlinear_solver.linesearch.options["print_bound_enforce"] = False
+        # self.linear_solver = om.DirectSolver(assemble_jac=True)#, rhs_checking =True)
+
+        self.options['auto_order'] = True

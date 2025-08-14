@@ -13,7 +13,7 @@ from aviary.mission.problem_configurator import ProblemConfiguratorBase
 from aviary.subsystems.propulsion.utils import build_engine_deck
 from aviary.utils.process_input_decks import initialization_guessing
 from aviary.utils.utils import wrapped_convert_units
-from aviary.variable_info.enums import AnalysisScheme, LegacyCode, Verbosity
+from aviary.variable_info.enums import LegacyCode, Verbosity
 from aviary.variable_info.variables import Aircraft, Dynamic, Mission
 from aviary.mission.utils import process_guess_var
 
@@ -97,10 +97,7 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
         AviaryValues
             General default phase_info.
         """
-        if aviary_group.analysis_scheme is AnalysisScheme.COLLOCATION:
-            from aviary.models.missions.height_energy_default import phase_info
-        else:
-            raise RuntimeError('Height Energy requires that a phase_info is specified.')
+        from aviary.models.missions.height_energy_default import phase_info
 
         return phase_info
 
@@ -273,7 +270,7 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
             aviary_group.regular_phases,
             'altitude_optimize',
             Dynamic.Mission.ALTITUDE,
-            ref=1.0e4,
+            ref=1e2,
         )
         self.link_phases_helper_with_options(
             aviary_group, aviary_group.regular_phases, 'mach_optimize', Dynamic.Atmosphere.MACH
@@ -285,7 +282,7 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
             aviary_group.reserve_phases,
             'altitude_optimize',
             Dynamic.Mission.ALTITUDE,
-            ref=1.0e4,
+            ref=1e2,
         )
         self.link_phases_helper_with_options(
             aviary_group, aviary_group.reserve_phases, 'mach_optimize', Dynamic.Atmosphere.MACH
@@ -299,13 +296,13 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
         aviary_group.traj.link_phases(
             phases,
             [Dynamic.Vehicle.MASS],
-            ref=None if connect_directly else 1e6,
+            ref=None if connect_directly else 1e1,
             connected=connect_directly,
         )
         aviary_group.traj.link_phases(
             phases,
             [Dynamic.Mission.DISTANCE],
-            ref=None if connect_directly else 1e3,
+            ref=None if connect_directly else 1e1,
             connected=connect_directly,
         )
 
@@ -322,6 +319,15 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
             src_indices=[-1],
             flat_src_indices=True,
         )
+
+        phase = aviary_group.traj._phases[phases[0]]
+
+        # Currently expects Distance to be an input.
+        phase.set_state_options(Dynamic.Mission.DISTANCE, input_initial=True)
+
+        if aviary_group.pre_mission_info['include_takeoff']:
+            # Allow these to connect to outputs in the pre-mission takeoff system.
+            phase.set_state_options(Dynamic.Vehicle.MASS, input_initial=True)
 
     def check_trajectory(self, aviary_group):
         """
@@ -400,7 +406,7 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
 
             # TODO: replace hard_coded ref for this constraint.
             eq.add_eq_output(
-                'mass', eq_units='lbm', normalize=False, ref=100000.0, add_constraint=True
+                'mass', eq_units='lbm', normalize=False, ref=1.0, add_constraint=True
             )
 
             aviary_group.connect(
@@ -430,7 +436,7 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
 
         # TODO: replace hard_coded ref for this constraint.
         aviary_group.post_mission.add_constraint(
-            Mission.Constraints.MASS_RESIDUAL, equals=0.0, ref=1.0e5
+            Mission.Constraints.MASS_RESIDUAL, equals=0.0, ref=1.0
         )
 
     def _add_post_mission_takeoff_systems(self, aviary_group):
@@ -548,6 +554,9 @@ class HeightEnergyProblemConfigurator(ProblemConfiguratorBase):
         prob_keys = ['tau_gear', 'tau_flaps']
 
         options = aviary_group.phase_info[phase_name]['user_options']
+
+        if options['throttle_enforcement'] == 'control':
+            control_keys.append('throttle')
 
         # Let's preserve the original user-specified initial conditions.
         guess_dict = deepcopy(guesses)

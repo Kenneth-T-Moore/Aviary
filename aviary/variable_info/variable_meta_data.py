@@ -1238,6 +1238,15 @@ add_meta_data(
 )
 
 add_meta_data(
+    Aircraft.Design.DRAG_DIVERGENCE_SHIFT,
+    meta_data=_MetaData,
+    historical_name={'GASP': 'INGASP.SCFAC', 'FLOPS': None, 'LEAPS1': None},
+    units='unitless',
+    desc='shift in drag divergence Mach number due to supercritical design',
+    default_value=0.0,
+)
+
+add_meta_data(
     Aircraft.Design.DRAG_POLAR,
     meta_data=_MetaData,
     historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
@@ -1583,15 +1592,6 @@ add_meta_data(
 )
 
 add_meta_data(
-    Aircraft.Design.SUPERCRITICAL_DIVERGENCE_SHIFT,
-    meta_data=_MetaData,
-    historical_name={'GASP': 'INGASP.SCFAC', 'FLOPS': None, 'LEAPS1': None},
-    units='unitless',
-    desc='shift in drag divergence Mach number due to supercritical design',
-    default_value=0.0,
-)
-
-add_meta_data(
     Aircraft.Design.SUPERSONIC_DRAG_COEFF_FACTOR,
     meta_data=_MetaData,
     historical_name={
@@ -1640,11 +1640,17 @@ add_meta_data(
     meta_data=_MetaData,
     historical_name={
         'GASP': None,
-        'FLOPS': 'CONFIN.TWR',
-        'LEAPS1': 'ipropulsion.req_thrust_weight_ratio',
+        'FLOPS': None,
+        'LEAPS1': None,
+        # NOTE TWR != THRUST_TO_WEIGHT_RATIO because Aviary's value is the actual T/W, while TWR is
+        #      the desired T/W ratio
+        # 'FLOPS': 'CONFIN.TWR',
+        # 'LEAPS1': 'ipropulsion.req_thrust_weight_ratio',
     },
     units='unitless',
-    desc='required thrust-to-weight ratio of aircraft',
+    default_value=0.0,
+    types=float,
+    desc='ratio of total sea-level-static thrust to aircraft takeoff gross weight',
 )
 
 add_meta_data(
@@ -1737,6 +1743,20 @@ add_meta_data(
 )
 
 add_meta_data(
+    Aircraft.Design.WING_LOADING,
+    meta_data=_MetaData,
+    historical_name={
+        'GASP': ['INGASP.WGS', 'INGASP.WOS'],
+        'FLOPS': None,  # 'MISSA.SWET',
+        'LEAPS1': None,
+    },
+    default_value=0,
+    types=float,
+    units='lbf/ft**2',
+    desc='ratio of aircraft gross takeoff weight to projected wing area',
+)
+
+add_meta_data(
     Aircraft.Design.ZERO_FUEL_MASS,
     meta_data=_MetaData,
     historical_name={
@@ -1782,7 +1802,7 @@ add_meta_data(
     historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
     units='unitless',
     option=True,
-    default_value=True,
+    default_value=False,
     types=bool,
     desc='if true there is an augmented electrical system',
 )
@@ -2269,7 +2289,11 @@ add_meta_data(
 add_meta_data(
     Aircraft.Engine.REFERENCE_DIAMETER,
     meta_data=_MetaData,
-    historical_name={'GASP': 'INGASP.DIAM_REF', 'FLOPS': None, 'LEAPS1': None},
+    historical_name={
+        'GASP': 'INGASP.DIAM_REF',
+        'FLOPS': None,
+        'LEAPS1': None,
+    },  # no DIAM_REF in GASP
     units='ft',
     desc='engine reference diameter',
     default_value=0.0,
@@ -2298,7 +2322,7 @@ add_meta_data(
     Aircraft.Engine.REFERENCE_SLS_THRUST,
     meta_data=_MetaData,
     historical_name={
-        'GASP': 'INGASP.FN_REF',
+        'GASP': 'INGASP.FN_REF',  # no FN_REF in GASP
         'FLOPS': 'WTIN.THRSO',
         'LEAPS1': 'aircraft.inputs.L0_engine*.thrust',
     },
@@ -2587,7 +2611,9 @@ add_meta_data(
     meta_data=_MetaData,
     historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
     units='A',
+    # types=(float, np.ndarray),
     desc='The idle or no-load current from a single motor.',
+    multivalue=True
 )
 
 add_meta_data(
@@ -2600,11 +2626,12 @@ add_meta_data(
 )
 
 add_meta_data(
-    Aircraft.Engine.Motor.PEAK_CURRENT,
+    Aircraft.Engine.Motor.MAX_CONT_CURRENT,
     meta_data=_MetaData,
     historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
     units='A',
-    desc='Maximum instantaneous current that flows through a single motor.',
+    desc='Maximum continuous current that flows through a single motor.',
+    multivalue=True,
 )
 
 add_meta_data(
@@ -2613,6 +2640,27 @@ add_meta_data(
     historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
     units='ohm',
     desc='Resistance from windings of a single motor.',
+    multivalue=True,
+)
+
+add_meta_data(
+    Aircraft.Engine.Motor.KV_EQ_SLOPE,
+    meta_data=_MetaData,
+    units='unitless',
+    default_value = 1.3132,
+    desc='__', #TODO Alex
+    option=True,
+    multivalue=True,
+)
+
+add_meta_data(
+    Aircraft.Engine.Motor.KV_EQ_INT,
+    meta_data=_MetaData,
+    units='unitless',
+    default_value= 0.01,
+    desc='__',
+    option=True,
+    multivalue=True,
 )
 
 
@@ -2697,6 +2745,7 @@ add_meta_data(
     historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
     units='inch',
     desc='Forward distance a propeller advances through one revolution.',
+    multivalue=True,
 )
 
 add_meta_data(
@@ -3398,7 +3447,7 @@ add_meta_data(
 add_meta_data(
     Aircraft.Fuselage.HYDRAULIC_DIAMETER,
     meta_data=_MetaData,
-    historical_name={'GASP': 'DHYDRAUL', 'FLOPS': None, 'LEAPS1': None},
+    historical_name={'GASP': 'DHYDRAL', 'FLOPS': None, 'LEAPS1': None},
     units='ft',
     types=float,
     default_value=0.0,
@@ -3471,7 +3520,7 @@ add_meta_data(
 )
 
 add_meta_data(
-    Aircraft.Fuselage.LIFT_COEFFICENT_RATIO_BODY_TO_WING,
+    Aircraft.Fuselage.LIFT_COEFFICIENT_RATIO_BODY_TO_WING,
     meta_data=_MetaData,
     historical_name={'GASP': 'INGASP.CLBqCLW', 'FLOPS': None, 'LEAPS1': None},
     units='unitless',
@@ -3665,7 +3714,7 @@ add_meta_data(
     Aircraft.Fuselage.PLANFORM_AREA,
     meta_data=_MetaData,
     historical_name={
-        'GASP': None,
+        'GASP': 'SPF_BODY',
         'FLOPS': None,  # '~WEIGHT.FPAREA',
         'LEAPS1': '(WeightABC)self._fuselage_planform_area',
     },
@@ -6159,6 +6208,17 @@ add_meta_data(
 )
 
 add_meta_data(
+    Aircraft.Wing.DETAILED_WING,
+    meta_data=_MetaData,
+    historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
+    units='unitless',
+    desc='Flag that sets if FLOPS mass should use the detailed wing model',
+    option=True,
+    types=bool,
+    default_value=False,
+)
+
+add_meta_data(
     Aircraft.Wing.DIHEDRAL,
     meta_data=_MetaData,
     historical_name={
@@ -6530,19 +6590,7 @@ add_meta_data(
     multivalue=True,
 )
 
-add_meta_data(
-    Aircraft.Wing.LOADING,
-    meta_data=_MetaData,
-    historical_name={
-        'GASP': ['INGASP.WGS', 'INGASP.WOS'],
-        'FLOPS': None,
-        'LEAPS1': None,
-    },
-    units='lbf/ft**2',
-    desc='wing loading',
-    default_value=0.0,
-)
-
+# TODO this variable may be uneccessary since we can just check wing loading's value where needed
 add_meta_data(
     Aircraft.Wing.LOADING_ABOVE_20,
     meta_data=_MetaData,
@@ -7063,17 +7111,6 @@ add_meta_data(
     units='unitless',
     desc='structural ultimate load factor',
     default_value=0.0,
-)
-
-add_meta_data(
-    Aircraft.Wing.USE_DETAILED_MASS,
-    meta_data=_MetaData,
-    historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
-    units='unitless',
-    desc='Flag that sets if FLOPS mass should use the detailed wing model',
-    option=True,
-    types=bool,
-    default_value=False,
 )
 
 add_meta_data(
@@ -7641,6 +7678,24 @@ add_meta_data(
 #  |_|   |_|   \___/ | .__/  \_,_| |_| /__/ |_| \___/ |_||_|
 #                    |_|
 # ==========================================================
+
+add_meta_data(
+    Dynamic.Vehicle.Propulsion.CURRENT, 
+    meta_data=_MetaData,
+    historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
+    units='A',
+    desc='Electrical current flow through an engine',
+    multivalue=True,
+)
+
+add_meta_data(
+    Dynamic.Vehicle.Propulsion.CURRENT_CON, 
+    meta_data=_MetaData,
+    historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
+    units='A',
+    desc='Constraint linking peak current and electrical current flow',
+    multivalue=True,
+)
 
 add_meta_data(
     Dynamic.Vehicle.Propulsion.ELECTRIC_POWER_IN,
@@ -8918,6 +8973,17 @@ add_meta_data(
     option=True,
     types=LegacyCode,
     default_value=None,
+)
+
+add_meta_data(
+    Settings.PAYLOAD_RANGE,
+    meta_data=_MetaData,
+    historical_name={'GASP': None, 'FLOPS': None, 'LEAPS1': None},
+    units='unitless',
+    option=True,
+    default_value=False,
+    types=bool,
+    desc='if true, aviary runs 2 off design missions and creates a payload range diagram.',
 )
 
 add_meta_data(
