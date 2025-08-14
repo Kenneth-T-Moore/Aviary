@@ -29,24 +29,32 @@ if __name__ == '__main__':
     # Link phases and variables
     prob.link_phases()
 
-    prob.add_driver('SLSQP')
+    prob.add_driver('IPOPT')
 
     prob.add_design_variables()
 
-    prob.add_objective()
+    prob.add_objective('mass')
 
     prob.setup()
 
     prob.set_initial_guesses()
 
-    prob.run_model(max_iter=1)
+    prob.run_aviary_problem(suppress_solver_print=True, verbosity=1)
 
-    # prob.run_aviary_problem(suppress_solver_print=True)
-    print('Total Mass', prob.get_val(av.Aircraft.Design.OPERATING_MASS))
-    print('Engine Mass', prob.get_val(av.Aircraft.Engine.MASS))
-    print('Fuselage Mass', prob.get_val(av.Aircraft.Fuselage.MASS))
+    # print(f"Battery Mass: {prob.get_val(av.Aircraft.Battery.MASS):.4f} kg")
+    # print(f"Motor Mass: {prob.get_val(av.Aircraft.Engine.Motor.MASS):.4f} kg")
     print('Wing Mass', prob.get_val(av.Aircraft.Wing.MASS))
     print('V tail mass', prob.get_val(av.Aircraft.VerticalTail.MASS))
     print('Horizontal Tail Mass', prob.get_val(av.Aircraft.HorizontalTail.MASS))
+    print('Vertical Tail Mass', prob.get_val(av.Aircraft.VerticalTail.MASS))
+    print('Fuselage Mass', prob.get_val(av.Aircraft.Fuselage.MASS))
+    print('Structure Mass', prob.get_val(av.Aircraft.Design.STRUCTURE_MASS))
+    print('Zero Fuel Mass', prob.get_val(av.Aircraft.Design.ZERO_FUEL_MASS))
+    print('Operating Mass', prob.get_val(av.Aircraft.Design.OPERATING_MASS))
+    print('Gross Mass', prob.get_val(av.Mission.Summary.GROSS_MASS))
+
+    # with open("variables.txt", "w") as f:
+    #     prob.model.list_vars(out_stream=f)
+    # prob.list_driver_vars()
 
     print('done')
