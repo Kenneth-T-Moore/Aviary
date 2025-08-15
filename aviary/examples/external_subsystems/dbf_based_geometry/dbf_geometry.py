@@ -184,9 +184,9 @@ class DBFGeom(om.ExplicitComponent):
         htail_airfoil_data_file = self.options[Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH]  # stays string key
         vtail_airfoil_data_file = self.options[Aircraft.VerticalTail.Dbf.AIRFOIL_PATH]  # stays string key
 
-        outputs[Aircraft.Wing.AREA] = wing_wet_area
-        outputs[Aircraft.HorizontalTail.AREA] = htail_wet_area        
-        outputs[Aircraft.VerticalTail.AREA] = fuse_wet_area
+        outputs[Aircraft.Wing.AREA] = wing_span * wing_chord
+        outputs[Aircraft.HorizontalTail.AREA] = htail_span * htail_chord        
+        outputs[Aircraft.VerticalTail.AREA] = vtail_span * vtail_chord
 
 
         HAS_OPENVSP = False
