@@ -402,7 +402,7 @@ class DBFGeom(om.ExplicitComponent):
 
         else:
             ### FUSE ###
-            fuse_wet_area = 2 * (fuse_len + fuse_height + fuse_width)
+            fuse_wet_area = 2 * (fuse_len * fuse_height + fuse_height * fuse_width + fuse_width * fuse_len)
 
             ### WING ###
             x_norm, y_norm = self.load_airfoil_csv(wing_airfoil_data_file, header=True)
@@ -476,11 +476,11 @@ if __name__ == "__main__":
     prob.run_model()
 
     fuse_wet_area = prob.get_val(Aircraft.Fuselage.WETTED_AREA, units='inch**2')
-    wing_wet_area = prob.get_val(Aircraft.Wing.WETTED_AREA, units='m**2')
+    wing_wet_area = prob.get_val(Aircraft.Wing.WETTED_AREA, units='inch**2')
     htail_wet_area = prob.get_val(Aircraft.HorizontalTail.WETTED_AREA, units='inch**2')
     vtail_wet_area = prob.get_val(Aircraft.VerticalTail.WETTED_AREA, units='inch**2')
 
-    # print(f"Fuselage Wetted Area: {float(fuse_wet_area):.3f} inch**2")
+    print(f"Fuselage Wetted Area: {float(fuse_wet_area):.3f} inch**2")
     print(f"Wing Wetted Area: {float(wing_wet_area):.3f} inch**2")
-    # print(f"HTail Wetted Area: {float(htail_wet_area):.3f} inch**2")
-    # print(f"VTail Wetted Area: {float(vtail_wet_area):.3f} inch**2")
+    print(f"HTail Wetted Area: {float(htail_wet_area):.3f} inch**2")
+    print(f"VTail Wetted Area: {float(vtail_wet_area):.3f} inch**2")
