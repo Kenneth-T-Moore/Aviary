@@ -58,7 +58,7 @@ prob.link_phases()
 
 prob.add_driver('IPOPT')
 # prob.add_driver('SLSQP')
-# prob.driver.options["debug_print"] = ["desvars", "nl_cons", "objs"]
+prob.driver.options["debug_print"] = ["desvars", "nl_cons", "objs"]
 
 prob.add_design_variables()
 

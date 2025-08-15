@@ -108,7 +108,7 @@ class RCPropMission(om.Group):
         #TODO Alex from phase builder base import add_control
         # self.add_control()
 
-        self.add_design_var(Dynamic.Vehicle.Propulsion.CURRENT, lower=0, scaler=1e-2, units='A')
+        # self.add_design_var(Dynamic.Vehicle.Propulsion.CURRENT, lower=0, scaler=1e-2, units='A')
 
         self.add_constraint('power_net', equals=0, ref=1e3)
         # self.add_constraint(Dynamic.Vehicle.Propulsion.CURRENT, lower=0)
