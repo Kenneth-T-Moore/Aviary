@@ -16,8 +16,8 @@ class GeomPremission(om.Group):
                 Aircraft.Wing.WETTED_AREA,
                 Aircraft.HorizontalTail.WETTED_AREA,
                 Aircraft.VerticalTail.WETTED_AREA,
-                Aircraft.Wing.AREA,
-                Aircraft.HorizontalTail.AREA,
-                Aircraft.VerticalTail.AREA,
+                # Aircraft.Wing.AREA,
+                # Aircraft.HorizontalTail.AREA,
+                # Aircraft.VerticalTail.AREA,
                 ],
         )
