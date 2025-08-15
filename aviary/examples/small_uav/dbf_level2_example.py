@@ -8,6 +8,7 @@ import numpy as np
 import aviary.api as av
 from aviary.examples.small_uav.dbf_example_phase import phase_info
 from aviary.examples.external_subsystems.dbf_based_mass.dbf_mass_builder import DBFMassBuilder
+from aviary.examples.external_subsystems.dbf_based_geometry.dbf_geometry_builder import DBFGeometryBuilder
 from aviary.subsystems.propulsion.rc_electric.rc_builder import RCBuilder
 from aviary.examples.external_subsystems.custom_aero.custom_aero_builder import CustomAeroBuilder
 
@@ -19,7 +20,7 @@ phase_info.pop('climb')
 # phase_info.pop('cruise')
 phase_info.pop('descent')
 
-phase_info['pre_mission']['external_subsystems'] = [DBFMassBuilder()]
+phase_info['pre_mission']['external_subsystems'] = [DBFGeometryBuilder(), DBFMassBuilder()]
 # phase_info['climb']['external_subsystems'] = [CustomAeroBuilder()]
 
 # phase_info['climb']['subsystem_options']['core_aerodynamics'] = {

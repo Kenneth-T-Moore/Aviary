@@ -9,8 +9,6 @@ try:
 except ImportError:
     HAS_OPENVSP = False
 
-# HAS_OPENVSP = False
-
 import openmdao.api as om
 from openmdao.utils.cs_safe import abs as cs_abs
 
@@ -41,6 +39,9 @@ class DBFGeom(om.ExplicitComponent):
         add_aviary_output(self, Aircraft.Wing.WETTED_AREA, units='m**2')
         add_aviary_output(self, Aircraft.HorizontalTail.WETTED_AREA, units='m**2')
         add_aviary_output(self, Aircraft.VerticalTail.WETTED_AREA, units='m**2')
+        add_aviary_output(self, Aircraft.Wing.AREA, units='m**2')
+        add_aviary_output(self, Aircraft.HorizontalTail.AREA, units='m**2')
+        add_aviary_output(self, Aircraft.VerticalTail.AREA, units='m**2')
         add_aviary_output(self, Aircraft.Fuselage.WETTED_AREA, units='m**2')
 
     def setup_partials(self):
@@ -62,6 +63,30 @@ class DBFGeom(om.ExplicitComponent):
         )
         self.declare_partials(
             of=Aircraft.VerticalTail.WETTED_AREA,
+            wrt=[
+                Aircraft.VerticalTail.SPAN,
+                Aircraft.VerticalTail.ROOT_CHORD,
+            ],
+            method='fd',
+        )
+        self.declare_partials(
+            of=Aircraft.Wing.AREA,
+            wrt=[
+                Aircraft.Wing.SPAN,
+                Aircraft.Wing.ROOT_CHORD,
+            ],
+            method='fd',
+        )
+        self.declare_partials(
+            of=Aircraft.HorizontalTail.AREA,
+            wrt=[
+                Aircraft.HorizontalTail.SPAN,
+                Aircraft.HorizontalTail.ROOT_CHORD,
+            ],
+            method='fd',
+        )
+        self.declare_partials(
+            of=Aircraft.VerticalTail.AREA,
             wrt=[
                 Aircraft.VerticalTail.SPAN,
                 Aircraft.VerticalTail.ROOT_CHORD,
@@ -144,24 +169,40 @@ class DBFGeom(om.ExplicitComponent):
         return 0.5 * cs_abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
     def compute(self, inputs, outputs):
-        wing_chord = inputs[Aircraft.Wing.ROOT_CHORD][0] * 10
-        wing_span = inputs[Aircraft.Wing.SPAN][0] * 10
+        wing_chord = inputs[Aircraft.Wing.ROOT_CHORD][0]
+        wing_span = inputs[Aircraft.Wing.SPAN][0]
         wing_mount_x = inputs[Aircraft.Wing.CENTER_DISTANCE][0]
         wing_mount_y = inputs[Aircraft.Wing.VERTICAL_MOUNT_LOCATION][0]
-        htail_chord = inputs[Aircraft.HorizontalTail.ROOT_CHORD][0] * 10
-        htail_span = inputs[Aircraft.HorizontalTail.SPAN][0] * 10
-        vtail_chord = inputs[Aircraft.VerticalTail.ROOT_CHORD][0] * 10
-        vtail_span = inputs[Aircraft.VerticalTail.SPAN][0] * 10
-        fuse_len = inputs[Aircraft.Fuselage.LENGTH][0] * 10
-        fuse_width = inputs[Aircraft.Fuselage.AVG_WIDTH][0] * 10
-        fuse_height = inputs[Aircraft.Fuselage.AVG_HEIGHT][0] * 10
+        htail_chord = inputs[Aircraft.HorizontalTail.ROOT_CHORD][0]
+        htail_span = inputs[Aircraft.HorizontalTail.SPAN][0]
+        vtail_chord = inputs[Aircraft.VerticalTail.ROOT_CHORD][0]
+        vtail_span = inputs[Aircraft.VerticalTail.SPAN][0]
+        fuse_len = inputs[Aircraft.Fuselage.LENGTH][0]
+        fuse_width = inputs[Aircraft.Fuselage.AVG_WIDTH][0]
+        fuse_height = inputs[Aircraft.Fuselage.AVG_HEIGHT][0]
         wing_airfoil_data_file = self.options[Aircraft.Wing.Dbf.AIRFOIL_PATH]  # stays string key
         htail_airfoil_data_file = self.options[Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH]  # stays string key
         vtail_airfoil_data_file = self.options[Aircraft.VerticalTail.Dbf.AIRFOIL_PATH]  # stays string key
 
-        print(f"Wing Chord:{wing_chord}, Wing Span:{wing_span}")
+        outputs[Aircraft.Wing.AREA] = wing_wet_area
+        outputs[Aircraft.HorizontalTail.AREA] = htail_wet_area        
+        outputs[Aircraft.VerticalTail.AREA] = fuse_wet_area
+
+
+        HAS_OPENVSP = False
 
         if HAS_OPENVSP:
+
+            wing_chord *= 10
+            wing_span *= 10
+            htail_chord *= 10
+            htail_span *= 10
+            vtail_chord *= 10
+            vtail_span *= 10
+            fuse_len *= 10
+            fuse_width *= 10
+            fuse_height *= 10
+
             ### VSP THINGS ###
             # Add Fuselage Geom
             fuseid = vsp.AddGeom("FUSELAGE", "")
@@ -393,10 +434,10 @@ class DBFGeom(om.ExplicitComponent):
             # Wetted area approx = length of curve * span
             vtail_wet_area = length * vtail_span + vtail_cs_area
 
-            outputs[Aircraft.Fuselage.WETTED_AREA] = fuse_wet_area / 100
-            outputs[Aircraft.Wing.WETTED_AREA] = wing_wet_area / 100
-            outputs[Aircraft.HorizontalTail.WETTED_AREA] = htail_wet_area / 100
-            outputs[Aircraft.VerticalTail.WETTED_AREA] = vtail_wet_area / 100
+            outputs[Aircraft.Fuselage.WETTED_AREA] = fuse_wet_area
+            outputs[Aircraft.Wing.WETTED_AREA] = wing_wet_area
+            outputs[Aircraft.HorizontalTail.WETTED_AREA] = htail_wet_area
+            outputs[Aircraft.VerticalTail.WETTED_AREA] = vtail_wet_area
     
 
 if __name__ == "__main__":

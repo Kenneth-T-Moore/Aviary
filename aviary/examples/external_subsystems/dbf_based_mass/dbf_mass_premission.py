@@ -40,8 +40,8 @@ class MassPremission(om.Group):
         )
 
         self.add_subsystem(
-            'mass_summation',
-            DBFFuselageMass(),
-            promotes_inputs=['*'],
-            promotes_outputs=[Aircraft.Design.OPERATING_MASS],
+            'mass_group', 
+            MassSummation(), 
+            promotes_inputs=['*'], 
+            promotes_outputs=['*']
         )
