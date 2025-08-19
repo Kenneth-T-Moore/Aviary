@@ -149,6 +149,31 @@ class AviaryGroup(om.Group):
                     phase.indep_states.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
                     phase.indep_states.linear_solver = om.DirectSolver(rhs_checking=True)
 
+        # Promote all inputs of the mission group that start with `aircraft:*` or `mission:*` to
+        # the top-level.
+        for phase in self.traj.phases.system_iter(recurse=False):
+            params = phase.parameter_options
+
+            # TODO: In Dymos 2.0 and Gauss Labotto, there are 2 ode locations.
+            ode = phase.rhs_all
+            all_inputs = ode.list_inputs(includes=['aircraft:*', 'mission:*'], out_stream=None)
+            all_inputs_prom = [p[1]['prom_name'] for p in all_inputs]
+            all_outputs = ode.list_outputs(includes=['aircraft:*', 'mission:*'], out_stream=None)
+            all_outputs_prom = [p[1]['prom_name'] for p in all_outputs]
+
+            # Skip anything already defined as a parameter.
+            # Also skip any variable that is provided in the ode.
+            top_level_inputs = set(all_inputs_prom) - set(all_outputs_prom) - set(params)
+
+            phase_name = phase.pathname
+            for input_name in top_level_inputs:
+                print(
+                    f'Promoting {input_name} from traj.phases.{phase_name}.rhs_all to top-level'
+                )
+                self.promotes(
+                    'traj', inputs=[(f'{phase_name}.rhs_all.{input_name}', input_name)]
+                )
+
     def load_inputs(
         self,
         aircraft_data,
