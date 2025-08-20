@@ -59,7 +59,7 @@ prob.link_phases()
 
 prob.add_driver('IPOPT')
 # prob.add_driver('SLSQP')
-prob.driver.options["debug_print"] = ["desvars", "nl_cons", "objs"]
+# prob.driver.options["debug_print"] = ["desvars", "nl_cons", "objs"]
 
 prob.add_design_variables()
 
@@ -70,7 +70,7 @@ prob.add_objective('time')
 
 prob.setup()
 
-prob.set_solver_print(level=0)
+# prob.set_solver_print(level=0)
 
 # prob.model.set_val(av.Mission.Design.GROSS_MASS, 6, units='kg')
 # prob.model.set_val('traj.cruise.timeseries.input_values:throttle', 1.0, units='unitless')

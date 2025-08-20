@@ -86,7 +86,7 @@ aircraft:fuselage:passenger_compartment_length,0,ft
 aircraft:fuselage:planform_area,0.2954,ft**2
 aircraft:fuselage:wetted_area_scaler,1.0,unitless
 aircraft:fuselage:wetted_area,904.0,inch**2
-aircraft:horizontal_tail:area,0.0142,m**2
+aircraft:horizontal_tail:area,0.10642,m**2
 aircraft:horizontal_tail:aspect_ratio,3.0,unitless
 aircraft:horizontal_tail:mass_scaler,0.0,unitless
 aircraft:horizontal_tail:taper_ratio,1,unitless
@@ -118,7 +118,7 @@ aircraft:vertical_tail:wetted_area_scaler,1.0,unitless
 aircraft:vertical_tail:wetted_area,0.139,m**2
 aircraft:wing:aeroelastic_tailoring_factor,0.0,unitless
 aircraft:wing:airfoil_technology,1,unitless
-aircraft:wing:area,0.065039,m**2
+aircraft:wing:area,0.15039,m**2
 aircraft:wing:aspect_ratio,5.14,unitless
 aircraft:wing:bending_material_mass_scaler,0.0,unitless
 aircraft:wing:chord_per_semispan,0.31,0.23,0.084,unitless
