@@ -15,7 +15,7 @@ constr_viol_tol 1e-6
 acceptable_iter 20
 acceptable_obj_change_tol 1e-5
 acceptable_tol 1e-1
-acceptable_constr_viol_tol 1e-5
+acceptable_constr_viol_tol 1e-4
 
 #Algorithm options
 limited_memory_max_history 9999

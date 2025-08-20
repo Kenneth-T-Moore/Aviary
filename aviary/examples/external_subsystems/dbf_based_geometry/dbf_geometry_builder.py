@@ -36,19 +36,19 @@ class DBFGeometryBuilder(SubsystemBuilderBase):
         # TODO Nish bounds are rough placeholders
         # TODO Nish once OAS is in add CG DVs?
         DVs = {
-            # Aircraft.Wing.ROOT_CHORD: {
-            #     'units': 'inch',
-            #     'lower': 3,
-            #     'upper': 24,
-            #     # 'val': 100,  
-            # },
+            Aircraft.Wing.ROOT_CHORD: {
+                'units': 'inch',
+                'lower': 3,
+                'upper': 24,
+                # 'val': 100,  
+            },
 
-            # Aircraft.Wing.SPAN: {
-            #     'units': 'ft',
-            #     'lower': 2,
-            #     'upper': 8,
-            #     # 'val': 100,  
-            # },
+            Aircraft.Wing.SPAN: {
+                'units': 'ft',
+                'lower': 2,
+                'upper': 8,
+                # 'val': 100,  
+            },
             
             Aircraft.HorizontalTail.ROOT_CHORD: {
                 'units': 'ft',
