@@ -73,48 +73,48 @@ class PropellerBuilder(SubsystemBuilderBase):
         }
         return DVs
 
-    def get_parameters(self, aviary_inputs=None, phase_info=None):
-        """
-        Parameters are only tested to see if they exist in mission.
-        The value doesn't change throughout the mission.
-        Returns a dictionary of fixed values for the propeller subsystem, where the keys
-        are the names of the fixed values, and the values are dictionaries that contain
-        the fixed value for the variable, the units for the variable, and any additional
-        keyword arguments required by OpenMDAO for the variable.
+    #def get_parameters(self, aviary_inputs=None, phase_info=None):
+        #"""
+        #Parameters are only tested to see if they exist in mission.
+        #The value doesn't change throughout the mission.
+        #Returns a dictionary of fixed values for the propeller subsystem, where the keys
+        #are the names of the fixed values, and the values are dictionaries that contain
+        #the fixed value for the variable, the units for the variable, and any additional
+        #keyword arguments required by OpenMDAO for the variable.
 
-        Returns
-        -------
-        parameters : dict
-        A dict of names for the propeller subsystem.
-        """
-        parameters = {
-            Aircraft.Engine.Propeller.TIP_MACH_MAX: {
-                'val': 1.0,
-                'units': 'unitless',
-            },
-            Aircraft.Engine.Propeller.TIP_SPEED_MAX: {
-                'val': 0.0,
-                'units': 'ft/s',
-            },
-            Aircraft.Engine.Propeller.INTEGRATED_LIFT_COEFFICIENT: {
-                'val': 0.0,
-                'units': 'unitless',
-            },
-            Aircraft.Engine.Propeller.ACTIVITY_FACTOR: {
-                'val': 0.0,
-                'units': 'unitless',
-            },
-            Aircraft.Engine.Propeller.DIAMETER: {
-                'val': 0.0,
-                'units': 'ft',
-            },
-            Aircraft.Nacelle.AVG_DIAMETER: {
-                'val': 0.0,
-                'units': 'ft',
-            },
-        }
+        #Returns
+        #-------
+        #parameters : dict
+        #A dict of names for the propeller subsystem.
+        #"""
+        #parameters = {
+            #Aircraft.Engine.Propeller.TIP_MACH_MAX: {
+                #'val': 1.0,
+                #'units': 'unitless',
+            #},
+            #Aircraft.Engine.Propeller.TIP_SPEED_MAX: {
+                #'val': 0.0,
+                #'units': 'ft/s',
+            #},
+            #Aircraft.Engine.Propeller.INTEGRATED_LIFT_COEFFICIENT: {
+                #'val': 0.0,
+                #'units': 'unitless',
+            #},
+            #Aircraft.Engine.Propeller.ACTIVITY_FACTOR: {
+                #'val': 0.0,
+                #'units': 'unitless',
+            #},
+            #Aircraft.Engine.Propeller.DIAMETER: {
+                #'val': 0.0,
+                #'units': 'ft',
+            #},
+            #Aircraft.Nacelle.AVG_DIAMETER: {
+                #'val': 0.0,
+                #'units': 'ft',
+            #},
+        #}
 
-        return parameters
+        #return parameters
 
     def get_mass_names(self):
         return [Aircraft.Engine.Gearbox.MASS]

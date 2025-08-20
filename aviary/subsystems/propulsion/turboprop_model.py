@@ -174,15 +174,15 @@ class TurbopropModel(EngineModel):
 
         return turboprop_group
 
-    def get_parameters(self):
-        params = super().get_parameters()  # calls from EngineModel
-        if self.shaft_power_model is not None:
-            params.update(self.shaft_power_model.get_parameters())
-        if self.gearbox_model is not None:
-            params.update(self.gearbox_model.get_parameters())
-        if self.propeller_model is not None:
-            params.update(self.propeller_model.get_parameters())
-        return params
+    #def get_parameters(self):
+        #params = super().get_parameters()  # calls from EngineModel
+        #if self.shaft_power_model is not None:
+            #params.update(self.shaft_power_model.get_parameters())
+        #if self.gearbox_model is not None:
+            #params.update(self.gearbox_model.get_parameters())
+        #if self.propeller_model is not None:
+            #params.update(self.propeller_model.get_parameters())
+        #return params
 
     def get_design_vars(self):
         desvars = super().get_design_vars()  # calls from EngineModel
