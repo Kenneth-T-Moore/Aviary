@@ -389,7 +389,7 @@ class DBFGeom(om.ExplicitComponent):
             outputs[Aircraft.HorizontalTail.WETTED_AREA] = htail_wet_area
             outputs[Aircraft.VerticalTail.WETTED_AREA] = vtail_wet_area
 
-            # #==== Save Vehicle to File ====//
+            #==== Save Vehicle to File ====//
             # print( "\tSaving vehicle file to: ", fname )
             # vsp.WriteVSPFile( vsp.GetVSPFileName(), SET_ALL )
             # vsp.ExportFile( "dbf.stl", SET_ALL, EXPORT_STL)

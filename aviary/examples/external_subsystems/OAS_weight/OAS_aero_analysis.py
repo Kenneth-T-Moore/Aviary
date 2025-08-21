@@ -72,22 +72,29 @@ class AeroConditions(om.ExplicitComponent):
     def compute_partials(self, inputs, partials):
         V = inputs[Dynamic.Mission.VELOCITY]
         L = inputs[Aircraft.Wing.ROOT_CHORD]
-        nu = inputs[Dynamic.Atmosphere.KINEMATIC_VISCOSITY]
         h = inputs[Dynamic.Mission.ALTITUDE]
 
         nn = self.options['num_nodes']
+        T = np.zeros(nn)
         rho = np.zeros(nn)
+        mu = np.zeros(nn)
+        nu = np.zeros(nn)
+        Re = np.zeros(nn)
 
         for i in range(nn):
             atm = Atmosphere(h[i])
+            T[i] = atm.temperature
             rho[i] = atm.density
+            mu[i] = atm.dynamic_viscosity
+            nu[i] = mu[i] / rho[i]
+            Re[i] = V[i] * L / nu[i]
 
         partials['re', Dynamic.Mission.VELOCITY] = L / nu
         partials['re', Aircraft.Wing.ROOT_CHORD] = V / nu
-        partials['re', Dynamic.Atmosphere.KINEMATIC_VISCOSITY] = -V * L / nu**2
+        # partials['re', Dynamic.Atmosphere.KINEMATIC_VISCOSITY] = -V * L / nu**2
         
         partials[Dynamic.Atmosphere.DYNAMIC_PRESSURE, Dynamic.Mission.VELOCITY] = rho * V
-        partials[Dynamic.Atmosphere.DYNAMIC_PRESSURE, Dynamic.Atmosphere.DENSITY] = 0.5 * V**2
+        # partials[Dynamic.Atmosphere.DYNAMIC_PRESSURE, Dynamic.Atmosphere.DENSITY] = 0.5 * V**2
 
 class CollectLiftDrag(om.ExplicitComponent):
     def initialize(self):
