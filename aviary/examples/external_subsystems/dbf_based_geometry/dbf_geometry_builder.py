@@ -39,49 +39,56 @@ class DBFGeometryBuilder(SubsystemBuilderBase):
             Aircraft.Wing.ROOT_CHORD: {
                 'units': 'inch',
                 'lower': 3,
-                'upper': 24,
+                'upper': 36,
                 # 'val': 100,  
             },
 
             Aircraft.Wing.SPAN: {
                 'units': 'ft',
                 'lower': 2,
-                'upper': 8,
+                'upper': 10,
+                # 'val': 100,  
+            },
+
+            Aircraft.Wing.CENTER_DISTANCE: {
+                'units': 'unitless',
+                'lower': 0,
+                'upper': 1,
                 # 'val': 100,  
             },
             
             Aircraft.HorizontalTail.ROOT_CHORD: {
-                'units': 'ft',
-                'lower': 0.5,
-                'upper': 2,
+                'units': 'inch',
+                'lower': 3,
+                'upper': 36,
                 # 'val': 100,  
             },
 
             Aircraft.HorizontalTail.SPAN: {
-                'units': 'm',
-                'lower': 0.01,
-                'upper': 3,
+                'units': 'ft',
+                'lower': 1,
+                'upper': 5,
                 # 'val': 100,  
             },
 
             Aircraft.VerticalTail.ROOT_CHORD: {
-                'units': 'm',
-                'lower': 0.01,
-                'upper': 0.5,
+                'units': 'inch',
+                'lower': 3,
+                'upper': 24,
                 # 'val': 100,  
             },
 
             Aircraft.VerticalTail.SPAN: {
                 'units': 'ft',
                 'lower': 0.5,
-                'upper': 4,
+                'upper': 3,
                 # 'val': 100,  
             },
 
             Aircraft.Fuselage.LENGTH: {
-                'units': 'inch',
-                'lower': 0.5,
-                'upper': 100,
+                'units': 'ft',
+                'lower': 1,
+                'upper': 7,
                 # 'val': 100,  
             },
 

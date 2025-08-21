@@ -5,6 +5,7 @@ using the default Aviary method. The engine model was developed using NPSS v3.2.
 """
 from copy import deepcopy
 import numpy as np
+import openmdao.api as om
 import aviary.api as av
 from aviary.examples.small_uav.dbf_example_phase import phase_info
 from aviary.examples.external_subsystems.dbf_based_mass.dbf_mass_builder import DBFMassBuilder
@@ -44,13 +45,13 @@ phase_info['cruise']['user_options'].update({
     'altitude_bounds': ((100, 200), 'ft'),
     'throttle_enforcement': 'boundary_constraint',
     'time_initial': (0, 's'),
-    'time_duration_bounds': ((1.0, 300.0), 's'),
+    'time_duration_bounds': ((1.0, 100.0), 's'),
 })
 
 # Add initial guesses
 phase_info['cruise']['initial_guesses'] = {
-    'time': ([0, 250], 's'),
-    'distance': ([0, 800], 'm')
+    'time': ([0, 60], 's'),
+    'distance': ([0, 300], 'ft')
 }
 
 # Create problem
@@ -66,7 +67,7 @@ prob.load_inputs(
 
 # Set aircraft geometry parameters from first script
 prob.aviary_inputs.set_val(Dynamic.Mission.ALTITUDE, 200, units='ft') 
-prob.aviary_inputs.set_val(Dynamic.Mission.VELOCITY, 36, units='ft/s')
+prob.aviary_inputs.set_val(Dynamic.Mission.VELOCITY, 37, units='m/s')
 
 prob.aviary_inputs.set_val(Aircraft.Wing.THICKNESS_TO_CHORD, 0.10) 
 prob.aviary_inputs.set_val(Aircraft.Wing.MAX_THICKNESS_LOCATION, 0.266) 
@@ -105,20 +106,24 @@ prob.add_design_variables()
 # Add specific design variables from first script
 prob.model.add_design_var('traj.cruise.rhs_all.rc_aero_analysis.alpha', lower=-5.0, upper=15.0)
 
-# Add objective from first script (minimize drag coefficient)
-prob.model.add_objective('traj.cruise.rhs_all.rc_aero_analysis.avg_CD', scaler=1)
-
 # Configure driver recording options
-prob.driver.recording_options['record_desvars'] = False
-prob.driver.recording_options['record_responses'] = False
-prob.driver.recording_options['record_objectives'] = False
-prob.driver.recording_options['record_constraints'] = False
+
+recorder = om.SqliteRecorder("opt_record.sql")
+
+prob.driver.add_recorder(recorder)
+prob.driver.recording_options["includes"] = ["*"]  # record everything
+prob.driver.recording_options["record_objectives"] = True
+prob.driver.recording_options["record_constraints"] = True
+prob.driver.recording_options["record_desvars"] = True
+
+prob.add_objective('time')
 
 # Setup and run
 prob.setup()
 
 # Set initial values
 prob.set_val('traj.cruise.rhs_all.rc_aero_analysis.alpha', np.array([10.0, 10.0, 10.0, 10.0]), units='deg')
+
 prob.set_initial_guesses()
 
 # Run the problem
@@ -143,4 +148,3 @@ print('Fuselage length:', prob.get_val('aircraft:fuselage:length'))
 print('Fuselage height:', prob.get_val('aircraft:fuselage:max_height'))
 print('Angle of attack:', prob.get_val('traj.cruise.rhs_all.rc_aero_analysis.alpha'))
 print('Wing span:', prob.get_val(Aircraft.Wing.SPAN))
-print('Lift:', prob.get_val(Dynamic.Vehicle.LIFT))

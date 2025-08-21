@@ -40,9 +40,9 @@ class DBFGeom(om.ExplicitComponent):
         add_aviary_output(self, Aircraft.HorizontalTail.WETTED_AREA, units='m**2')
         add_aviary_output(self, Aircraft.VerticalTail.WETTED_AREA, units='m**2')
         add_aviary_output(self, Aircraft.Fuselage.WETTED_AREA, units='m**2')
-        # add_aviary_output(self, Aircraft.Wing.AREA, units='m**2')
-        # add_aviary_output(self, Aircraft.HorizontalTail.AREA, units='m**2')
-        # add_aviary_output(self, Aircraft.VerticalTail.AREA, units='m**2')
+        add_aviary_output(self, Aircraft.Wing.AREA, units='m**2')
+        add_aviary_output(self, Aircraft.HorizontalTail.AREA, units='m**2')
+        add_aviary_output(self, Aircraft.VerticalTail.AREA, units='m**2')
 
     def setup_partials(self):
         self.declare_partials(
@@ -78,30 +78,27 @@ class DBFGeom(om.ExplicitComponent):
             ],
             method='fd',
         )
-        # self.declare_partials(
-        #     of=Aircraft.Wing.AREA,
-        #     wrt=[
-        #         Aircraft.Wing.SPAN,
-        #         Aircraft.Wing.ROOT_CHORD,
-        #     ],
-        #     method='fd',
-        # )
-        # self.declare_partials(
-        #     of=Aircraft.HorizontalTail.AREA,
-        #     wrt=[
-        #         Aircraft.HorizontalTail.SPAN,
-        #         Aircraft.HorizontalTail.ROOT_CHORD,
-        #     ],
-        #     method='fd',
-        # )
-        # self.declare_partials(
-        #     of=Aircraft.VerticalTail.AREA,
-        #     wrt=[
-        #         Aircraft.VerticalTail.SPAN,
-        #         Aircraft.VerticalTail.ROOT_CHORD,
-        #     ],
-        #     method='fd',
-        # )
+        self.declare_partials(
+            of=Aircraft.Wing.AREA,
+            wrt=[
+                Aircraft.Wing.SPAN,
+                Aircraft.Wing.ROOT_CHORD,
+            ]
+        )
+        self.declare_partials(
+            of=Aircraft.HorizontalTail.AREA,
+            wrt=[
+                Aircraft.HorizontalTail.SPAN,
+                Aircraft.HorizontalTail.ROOT_CHORD,
+            ]
+        )
+        self.declare_partials(
+            of=Aircraft.VerticalTail.AREA,
+            wrt=[
+                Aircraft.VerticalTail.SPAN,
+                Aircraft.VerticalTail.ROOT_CHORD,
+            ]
+        )
 
     def vsp_load_airfoil_csv(self, file_path, delimiter=',', header=False):
             if not os.path.exists(file_path):
@@ -184,9 +181,9 @@ class DBFGeom(om.ExplicitComponent):
         htail_airfoil_data_file = self.options[Aircraft.HorizontalTail.Dbf.AIRFOIL_PATH]  # stays string key
         vtail_airfoil_data_file = self.options[Aircraft.VerticalTail.Dbf.AIRFOIL_PATH]  # stays string key
 
-        # outputs[Aircraft.Wing.AREA] = wing_span * wing_chord
-        # outputs[Aircraft.HorizontalTail.AREA] = htail_span * htail_chord        
-        # outputs[Aircraft.VerticalTail.AREA] = vtail_span * vtail_chord
+        outputs[Aircraft.Wing.AREA] = wing_span * wing_chord
+        outputs[Aircraft.HorizontalTail.AREA] = htail_span * htail_chord        
+        outputs[Aircraft.VerticalTail.AREA] = vtail_span * vtail_chord
 
         HAS_OPENVSP = False
 
@@ -437,6 +434,28 @@ class DBFGeom(om.ExplicitComponent):
             outputs[Aircraft.Wing.WETTED_AREA] = wing_wet_area
             outputs[Aircraft.HorizontalTail.WETTED_AREA] = htail_wet_area
             outputs[Aircraft.VerticalTail.WETTED_AREA] = vtail_wet_area
+
+    def compute_partials(self, inputs, J):
+        # Wing
+        span = inputs[Aircraft.Wing.SPAN]
+        root_chord = inputs[Aircraft.Wing.ROOT_CHORD]
+
+        J[Aircraft.Wing.AREA, Aircraft.Wing.SPAN] = root_chord
+        J[Aircraft.Wing.AREA, Aircraft.Wing.ROOT_CHORD] = span
+
+        # Horizontal Tail
+        hspan = inputs[Aircraft.HorizontalTail.SPAN]
+        hroot = inputs[Aircraft.HorizontalTail.ROOT_CHORD]
+
+        J[Aircraft.HorizontalTail.AREA, Aircraft.HorizontalTail.SPAN] = hroot
+        J[Aircraft.HorizontalTail.AREA, Aircraft.HorizontalTail.ROOT_CHORD] = hspan
+
+        # Vertical Tail
+        vspan = inputs[Aircraft.VerticalTail.SPAN]
+        vroot = inputs[Aircraft.VerticalTail.ROOT_CHORD]
+
+        J[Aircraft.VerticalTail.AREA, Aircraft.VerticalTail.SPAN] = vroot
+        J[Aircraft.VerticalTail.AREA, Aircraft.VerticalTail.ROOT_CHORD] = vspan
     
 
 if __name__ == "__main__":

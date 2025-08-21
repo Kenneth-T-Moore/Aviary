@@ -133,7 +133,7 @@ class RCBuilder(EngineModel):
             },
             Aircraft.Engine.Propeller.DIAMETER: {
                 'val': 0.0,
-                'units': 'm',
+                'units': 'inch',
             },
             Aircraft.Engine.Propeller.PITCH: {
                 'val': 0.0,
