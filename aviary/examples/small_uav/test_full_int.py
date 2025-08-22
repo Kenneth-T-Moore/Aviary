@@ -57,7 +57,7 @@ phase_info['cruise']['initial_guesses'] = {
 }
 
 # Create problem
-prob = av.AviaryProblem(verbosity=2)
+prob = av.AviaryProblem(verbosity=1)
 prob.options['group_by_pre_opt_post'] = True
 
 # Load aircraft and options data
@@ -99,7 +99,7 @@ prob.add_post_mission_systems()
 prob.link_phases()
 
 # Add driver
-optimizer = 'IPOPT'
+optimizer = 'SNOPT'
 prob.add_driver(optimizer=optimizer)
 
 # Add design variables
@@ -132,6 +132,9 @@ prob.set_val('traj.cruise.rhs_all.rc_aero_analysis.alpha', np.array([10.0, 10.0,
 prob.set_initial_guesses()
 
 # Run the problem
+prob.run_model()
+#prob.check_partials(method='fd', step=1.01e-6, compact_print=True, excludes=['*oas*'])
+#prob.check_totals(method='fd', step=1.01e-6)
 prob.run_aviary_problem(suppress_solver_print=False)
 # prob.run_model()
 

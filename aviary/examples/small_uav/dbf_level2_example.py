@@ -57,7 +57,7 @@ prob.add_post_mission_systems()
 # Link phases and variables
 prob.link_phases()
 
-prob.add_driver('IPOPT')
+prob.add_driver('SNOPT')
 # prob.add_driver('SLSQP')
 # prob.driver.options["debug_print"] = ["desvars", "nl_cons", "objs"]
 
