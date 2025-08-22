@@ -43,19 +43,21 @@ phase_info['cruise']['user_options'].update({
     'altitude_initial': (200, 'ft'),
     'altitude_final': (200, 'ft'),
     'altitude_bounds': ((100, 200), 'ft'),
-    'throttle_enforcement': 'boundary_constraint',
+    'throttle_enforcement': 'control',
+    'throttle_optimize': True,
     'time_initial': (0, 's'),
     'time_duration_bounds': ((1.0, 100.0), 's'),
 })
 
 # Add initial guesses
 phase_info['cruise']['initial_guesses'] = {
+    'mass': (4.53, 'kg'),
     'time': ([0, 60], 's'),
     'distance': ([0, 300], 'ft')
 }
 
 # Create problem
-prob = av.AviaryProblem(verbosity=1)
+prob = av.AviaryProblem(verbosity=2)
 prob.options['group_by_pre_opt_post'] = True
 
 # Load aircraft and options data
@@ -105,6 +107,9 @@ prob.add_design_variables()
 
 # Add specific design variables from first script
 prob.model.add_design_var('traj.cruise.rhs_all.rc_aero_analysis.alpha', lower=-5.0, upper=15.0)
+prob.model.add_constraint('traj.cruise.rhs_all.rc_aero_analysis.lifting_surface_CD', lower=0, upper=1)
+prob.model.add_constraint('traj.cruise.rhs_all.rc_aero_analysis.lifting_surface_CL', lower=0, upper=1)
+
 
 # Configure driver recording options
 
@@ -128,6 +133,7 @@ prob.set_initial_guesses()
 
 # Run the problem
 prob.run_aviary_problem(suppress_solver_print=False)
+# prob.run_model()
 
 # Output results
 with open("variables.txt", "w") as f:

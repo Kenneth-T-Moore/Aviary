@@ -51,7 +51,7 @@ class RCBuilder(EngineModel):
         DVs = {
             Aircraft.Battery.MASS: {
                 'units': 'kg',
-                'lower': 0.1,
+                'lower': 0.3,
                 'upper': 1.0,
                 # 'val': 100,  
             },
@@ -123,14 +123,14 @@ class RCBuilder(EngineModel):
                 'val': 400,  
                 'units': 'rpm/V',
             },
-            Aircraft.Engine.Motor.IDLE_CURRENT: {
-                'val': 2.2,  
-                'units': 'A',
-            },
-            Aircraft.Engine.Motor.MAX_CONT_CURRENT: {
-                'val': 100,  
-                'units': 'A',
-            },
+            # Aircraft.Engine.Motor.IDLE_CURRENT: {
+            #     'val': 2.2,  
+            #     'units': 'A',
+            # },
+            # Aircraft.Engine.Motor.MAX_CONT_CURRENT: {
+            #     'val': 100,  
+            #     'units': 'A',
+            # },
             Aircraft.Engine.Propeller.DIAMETER: {
                 'val': 0.0,
                 'units': 'inch',

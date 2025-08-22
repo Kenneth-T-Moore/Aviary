@@ -21,6 +21,7 @@ class RCAeroBuilder(SubsystemBuilderBase):
 
     def mission_inputs(self, **kwargs):
         return [
+            Dynamic.Vehicle.MASS,
             Dynamic.Mission.ALTITUDE,
             Dynamic.Mission.VELOCITY,
         ]
