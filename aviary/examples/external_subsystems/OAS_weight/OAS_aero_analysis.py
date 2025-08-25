@@ -183,7 +183,24 @@ class BroadcastHTailChord(om.ExplicitComponent):
         nn = 10
         partials['broadcast_htail_chord', Aircraft.HorizontalTail.ROOT_CHORD] = np.ones(nn)
 
-class AlphaComp(om.ImplicitComponent):
+class AlphaBroadcast(om.ExplicitComponent):
+    # compute AoA using aircraft mass, assuming lift = weight * cos(alpha)
+    def initialize(self):
+        self.options.declare('num_nodes', types=int)
+
+    def setup(self):
+        nn = self.options['num_nodes']
+
+        self.add_input('alpha_opt', shape=nn, units='deg')
+        self.add_output('alpha', shape=nn, units='deg')
+
+        rows_cols = np.arange(nn)
+        self.declare_partials('alpha', 'alpha_opt', rows=rows_cols, cols=rows_cols, val=1.0)
+
+    def compute(self, inputs, outputs):
+        outputs['alpha'][:] = inputs['alpha_opt']
+
+class AlphaComp(om.ExplicitComponent):
     # compute AoA using aircraft mass, assuming lift = weight * cos(alpha)
     def initialize(self):
         self.options.declare('num_nodes', types=int)
@@ -193,30 +210,30 @@ class AlphaComp(om.ImplicitComponent):
 
         add_aviary_input(self, Dynamic.Vehicle.LIFT, shape=nn, units='N')
         add_aviary_input(self, Dynamic.Vehicle.MASS, shape=nn, units='kg')
-        self.add_output('alpha', shape=nn, units='deg')
+        self.add_input('alpha_opt', shape=nn, units='deg')
+        self.add_output('force_resid', shape=nn, units='N')
 
         rows_cols = np.arange(nn)
-        self.declare_partials('alpha', Dynamic.Vehicle.LIFT, rows=rows_cols, cols=rows_cols)
-        self.declare_partials('alpha', Dynamic.Vehicle.MASS, rows=rows_cols, cols=rows_cols)
-        self.declare_partials('alpha', 'alpha', rows=rows_cols, cols=rows_cols)
+        self.declare_partials('force_resid', Dynamic.Vehicle.LIFT, rows=rows_cols, cols=rows_cols, val=1.0)
+        self.declare_partials('force_resid', Dynamic.Vehicle.MASS, rows=rows_cols, cols=rows_cols)
+        self.declare_partials('force_resid', 'alpha_opt', rows=rows_cols, cols=rows_cols)
 
-    def apply_nonlinear(self, inputs, outputs, residuals):
+    def compute(self, inputs, outputs):
         L = inputs[Dynamic.Vehicle.LIFT]
         m = inputs[Dynamic.Vehicle.MASS]
         g = 9.8 # m/s
-        a = np.radians(outputs['alpha'])
-        residuals['alpha'] = L - (m * g * np.cos(a))
+        a = np.radians(inputs['alpha_opt'])
+        outputs['force_resid'] = L - (m * g * np.cos(a))
 
-    def linearize(self, inputs, outputs, partials):
+    def compute_partials(self, inputs, partials):
         nn = self.options['num_nodes']
         L = inputs[Dynamic.Vehicle.LIFT]
         m = inputs[Dynamic.Vehicle.MASS]
         g = 9.8 # m/s
-        a = np.radians(outputs['alpha'])
+        a = np.radians(inputs['alpha_opt'])
 
-        partials['alpha', Dynamic.Vehicle.LIFT] = np.ones(nn)
-        partials['alpha', Dynamic.Vehicle.MASS] = -g * np.cos(a)
-        partials['alpha', 'alpha'] = m * g * np.sin(a) * np.pi / 180.0
+        partials['force_resid', Dynamic.Vehicle.MASS] = -g * np.cos(a)
+        partials['force_resid', 'alpha_opt'] = m * g * np.sin(a) * np.pi / 180.0
 
 
 class OASAero(om.Group):
@@ -333,11 +350,11 @@ class OASAero(om.Group):
         # array of zeros for CG (x, y, z)
         prob_vars.add_output('cg', val=np.zeros(3), units='m')
         self.add_subsystem('prob_vars', prob_vars, promotes=[])
-       
+
         self.add_subsystem(
-            'alpha_comp',
-            AlphaComp(num_nodes=nn),
-            promotes_inputs=[Dynamic.Vehicle.LIFT, Dynamic.Vehicle.MASS],
+            'alpha_broadcast',
+            AlphaBroadcast(num_nodes=nn),
+            promotes_inputs=['alpha_opt'],
             promotes_outputs=['alpha']
         )
 
@@ -376,7 +393,16 @@ class OASAero(om.Group):
                     'lifting_surface_CD'
                 ]
         )
-        
+
+        self.add_subsystem(
+            'alpha_comp',
+            AlphaComp(num_nodes=nn),
+            promotes_inputs=[Dynamic.Vehicle.LIFT, Dynamic.Vehicle.MASS, 'alpha_opt'],
+            promotes_outputs=['force_resid']
+        )
+        #self.add_design_var('alpha_opt', lower=-2.0, upper=15.0)
+        self.add_constraint('force_resid', equals=0.0, ref=100.0)
+
         self.options['auto_order'] = True
 
     def configure(self):

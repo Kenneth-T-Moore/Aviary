@@ -92,19 +92,19 @@ class DBFGeometryBuilder(SubsystemBuilderBase):
                 # 'val': 100,  
             },
 
-            Aircraft.Fuselage.AVG_WIDTH: {
-                'units': 'm',
-                'lower': 0.01,
-                'upper': 0.5,
-                # 'val': 100,  
-            },
+            # Aircraft.Fuselage.AVG_WIDTH: {
+            #     'units': 'm',
+            #     'lower': 0.01,
+            #     'upper': 0.5,
+            #     # 'val': 100,  
+            # },
 
-            Aircraft.Fuselage.AVG_HEIGHT: {
-                'units': 'm',
-                'lower': 0.01,
-                'upper': 0.5,
-                # 'val': 100,  
-            },
+            #Aircraft.Fuselage.AVG_HEIGHT: {
+            #     'units': 'm',
+            #     'lower': 0.01,
+            #     'upper': 0.5,
+            #     # 'val': 100,  
+            # },
 
         }
         return DVs
