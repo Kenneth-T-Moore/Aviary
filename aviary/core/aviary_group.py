@@ -95,9 +95,7 @@ class AviaryGroup(om.Group):
             all_traj_proms = self.comm.bcast(all_traj_proms, root=0)
 
         for p_tup in all_traj_proms:
-            print(p_tup)
             self.promotes('traj', inputs=[p_tup])
-        exit()
 
         # Find promoted name of every input in the model.
         all_prom_inputs = []
