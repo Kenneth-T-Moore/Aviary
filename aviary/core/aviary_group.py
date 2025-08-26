@@ -68,6 +68,37 @@ class AviaryGroup(om.Group):
         aviary_options = self.aviary_inputs
         aviary_metadata = self.meta_data
 
+        # Promote all inputs of the mission group that start with `aircraft:*` or `mission:*` to
+        # the top-level.
+        all_traj_proms = []
+        for phase in self.traj.phases.system_iter(recurse=False):
+            params = phase.list_inputs(includes='*param_comp*', out_stream=None)
+
+            for name, meta in params:
+                prom_name = meta['prom_name']
+
+                if not prom_name.startswith('parameters:'):
+                    continue
+
+                traj_prom_name = prom_name.lstrip('parameters')
+                traj_prom_name = traj_prom_name.lstrip(':')
+
+                if not traj_prom_name.startswith('aircraft:') and not traj_prom_name.startswith('mission:'):
+                    continue
+
+                p_tup = (f'{phase.name}.parameters:{traj_prom_name}', traj_prom_name)
+                #p_tup = (traj_prom_name)
+                all_traj_proms.append(p_tup)
+
+        if MPI and self.comm.size > 1:
+            # Under MPI, all procs must have the same promotes list.
+            all_traj_proms = self.comm.bcast(all_traj_proms, root=0)
+
+        for p_tup in all_traj_proms:
+            print(p_tup)
+            self.promotes('traj', inputs=[p_tup])
+        exit()
+
         # Find promoted name of every input in the model.
         all_prom_inputs = []
 
@@ -148,35 +179,6 @@ class AviaryGroup(om.Group):
                 if isinstance(phase.indep_states, om.ImplicitComponent):
                     phase.indep_states.nonlinear_solver = om.NewtonSolver(solve_subsystems=True)
                     phase.indep_states.linear_solver = om.DirectSolver(rhs_checking=True)
-
-       # Promote all inputs of the mission group that start with `aircraft:*` or `mission:*` to
-        # the top-level.
-        all_traj_proms = []
-        for phase in self.traj.phases.system_iter(recurse=False):
-            params = phase.list_inputs(includes='*param_comp*', out_stream=None)
-
-            for name, meta in params:
-                prom_name = meta['prom_name']
-
-                if not prom_name.startswith('parameters:'):
-                    continue
-
-                traj_prom_name = prom_name.lstrip('parameters')
-                traj_prom_name = traj_prom_name.lstrip(':')
-
-                if not traj_prom_name.startswith('aircraft:') and not traj_prom_name.startswith('mission:'):
-                    continue
-
-                p_tup = (f'{phase.name}.parameters:{traj_prom_name}', traj_prom_name)
-                #p_tup = (traj_prom_name)
-                all_traj_proms.append(p_tup)
-
-        if MPI and self.comm.size > 1:
-            # Under MPI, all procs must have the same promotes list.
-            all_traj_proms = self.comm.bcast(all_traj_proms, root=0)
-
-        for p_tup in all_traj_proms:
-            self.promotes('traj', inputs=[p_tup])
 
     def load_inputs(
         self,
