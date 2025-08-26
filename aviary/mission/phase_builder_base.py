@@ -208,7 +208,10 @@ class PhaseBuilderBase(ABC):
             )
         else:
             phase = dm.Phase(
-                ode_class=ode_class, transcription=transcription, ode_init_kwargs=kwargs
+                ode_class=ode_class,
+                transcription=transcription,
+                ode_init_kwargs=kwargs,
+                auto_add_parameters=True,
             )
 
         # Add a timeseries for the "mission bus variables" that will be a uniform grid, using Falck Magik™.
