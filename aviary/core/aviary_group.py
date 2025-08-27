@@ -92,7 +92,10 @@ class AviaryGroup(om.Group):
 
         if MPI and self.comm.size > 1:
             # Under MPI, all procs must have the same promotes list.
-            all_traj_proms = self.comm.bcast(all_traj_proms, root=0)
+            traj_proms_all_ranks = self.comm.allgather(all_traj_proms)
+            all_traj_proms = set()
+            for traj_proms_j in traj_proms_all_ranks:
+                all_traj_proms = all_traj_proms.union(traj_proms_j)
 
         for p_tup in all_traj_proms:
             self.promotes('traj', inputs=[p_tup])
