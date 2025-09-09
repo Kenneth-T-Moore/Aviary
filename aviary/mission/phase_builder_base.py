@@ -365,20 +365,24 @@ class PhaseBuilderBase(ABC):
     def _add_user_defined_constraints(self, phase, constraints):
         """Add each constraint and its corresponding arguments to the phase."""
         for constraint_name, kwargs in constraints.items():
-            if kwargs['type'] == 'boundary':
-                kwargs.pop('type')
 
-                if 'target' in kwargs:
+            from copy import deepcopy
+            new_kwargs = deepcopy(kwargs)
+
+            if new_kwargs['type'] == 'boundary':
+                new_kwargs.pop('type')
+
+                if 'target' in new_kwargs:
                     # Support for constraint aliases.
-                    target = kwargs.pop('target')
-                    kwargs['constraint_name'] = constraint_name
-                    phase.add_boundary_constraint(target, **kwargs)
+                    target = new_kwargs.pop('target')
+                    new_kwargs['constraint_name'] = constraint_name
+                    phase.add_boundary_constraint(target, **new_kwargs)
                 else:
-                    phase.add_boundary_constraint(constraint_name, **kwargs)
+                    phase.add_boundary_constraint(constraint_name, **new_kwargs)
 
-            elif kwargs['type'] == 'path':
-                kwargs.pop('type')
-                phase.add_path_constraint(constraint_name, **kwargs)
+            elif new_kwargs['type'] == 'path':
+                new_kwargs.pop('type')
+                phase.add_path_constraint(constraint_name, **new_kwargs)
 
     def set_time_options(self, user_options, targets=[]):
         """Set time options: fix_initial flag, duration upper bounds, duration reference."""
