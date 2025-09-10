@@ -1716,7 +1716,7 @@ class AviaryProblem(om.Problem):
             # If not, fetch the initial guesses specific to the phase
             # check if guesses exist for this phase
             if 'initial_guesses' in self.phase_info[phase_name]:
-                guesses = self.phase_info[phase_name]['initial_guesses']
+                guesses = self.phase_info[phase_name]['initial_guesses'].copy()
             else:
                 guesses = {}
 
