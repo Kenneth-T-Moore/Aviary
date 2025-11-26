@@ -413,7 +413,7 @@ class Test2DOFOffDesign(unittest.TestCase):
     def test_alternate_mission_changed(self):
         # run an alternate mission with modified range and payload
         prob = self.prob
-        alternate_phase_info = deepcopy(twodof_phase_info.copy)
+        alternate_phase_info = deepcopy(twodof_phase_info)
         alternate_phase_info['desc1']['time_duration_bounds'] = ((200.0, 900.0), 's')
 
         prob_alternate = prob.run_off_design_mission(
