@@ -4,7 +4,7 @@ from aviary.variable_info.enums import PhaseType, SpeedType
 energy_phase_info = {
     'pre_mission': {'include_takeoff': False, 'optimize_mass': True},
     'climb': {
-        'subsystem_options': {'core_aerodynamics': {'method': 'cruise', 'solve_alpha': 'true'}},
+        'subsystem_options': {'aerodynamics': {'method': 'cruise', 'solve_alpha': True}},
         'user_options': {
             'num_segments': 5,
             'order': 3,
@@ -28,7 +28,7 @@ energy_phase_info = {
         },
     },
     'cruise': {
-        'subsystem_options': {'core_aerodynamics': {'method': 'cruise', 'solve_alpha': 'true'}},
+        'subsystem_options': {'aerodynamics': {'method': 'cruise', 'solve_alpha': True}},
         'user_options': {
             'num_segments': 5,
             'order': 3,
@@ -40,18 +40,18 @@ energy_phase_info = {
             'altitude_bounds': ((20_000.0, 22_000.0), 'ft'),
             'mass_ref': (154000, 'lbm'),
             'throttle_enforcement': 'control',
-            'throttle_bounds': ((0.2, 1), 'unitless'),
+            'throttle_bounds': ((0.4, 1), 'unitless'),
             'time_initial_bounds': ((24.0, 128.0), 'min'),
             'time_duration_bounds': ((56.5, 1000.0), 'min'),
         },
         'initial_guesses': {
             'altitude': ([21_000, 21_000.0], 'ft'),
             'mach': ([0.475, 0.475], 'unitless'),
-            'throttle': ([1, 1], 'unitless'),
+            'throttle': ([.7, .7], 'unitless'),
         },
     },
     'descent': {
-        'subsystem_options': {'core_aerodynamics': {'method': 'cruise', 'solve_alpha': 'true'}},
+        'subsystem_options': {'aerodynamics': {'method': 'cruise', 'solve_alpha': True}},
         'user_options': {
             'num_segments': 5,
             'order': 3,
@@ -66,11 +66,12 @@ energy_phase_info = {
             'mass_ref': (154000, 'lbm'),
             'no_climb': True,
             'throttle_enforcement': 'control',
-            'throttle_bounds': ((0.15, 1), 'unitless'),
+            'throttle_bounds': ((0.25, 1), 'unitless'),
+            #'throttle_optimize': False,
             'time_initial_bounds': ((80, 1056.5), 'min'),
             'time_duration_bounds': ((29.0, 128.0), 'min'),
         },
-        'initial_guesses': {'throttle': ([0.5, 0.15], 'unitless')},
+        'initial_guesses': {'throttle': ([0.25, 0.25], 'unitless')},
     },
     'post_mission': {
         'include_landing': False,

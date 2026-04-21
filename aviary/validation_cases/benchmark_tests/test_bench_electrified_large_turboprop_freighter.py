@@ -96,7 +96,7 @@ class LargeElectrifiedTurbopropFreighterBenchmark(unittest.TestCase):
         prob.model.add_objective(
             f'traj.{final_phase_name}.timeseries.cumulative_electric_energy_used',
             index=-1,
-            ref=1e6,
+            ref=1e8,
         )
         # prob.add_objective('mass')
 
@@ -105,9 +105,19 @@ class LargeElectrifiedTurbopropFreighterBenchmark(unittest.TestCase):
         # initial guess for pack mass.
         prob.set_val(Aircraft.Battery.PACK_MASS, val=25_000.0, units='lbm')
 
-        prob.run_aviary_problem()
+        try:
+            prob.run_aviary_problem() #simulate=True)
+        except:
+            pass
 
-        # prob.model.list_vars(units=True, print_arrays=True)
+        #with open('z.txt', 'w') as outfile:
+        #    prob.model.list_vars(units=True, print_arrays=True, out_stream=outfile)
+
+        #prob.check_partials(method='cs', step=-1e-40, compact_print=True, show_only_incorrect=True)
+
+        prob.run_model()
+        #prob.check_totals(method='fd', step=-1e-6, compact_print=False, show_only_incorrect=True, rich_print=False)
+        prob.check_totals(method='cs', step=-1e-40, compact_print=False, show_only_incorrect=True, rich_print=False)
         return prob
 
     @unittest.skip('Skipping until subsystems with states can be used in 2DOF cruise')

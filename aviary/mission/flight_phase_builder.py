@@ -264,6 +264,9 @@ class FlightPhaseBase(PhaseBuilder):
                 Dynamic.Vehicle.Propulsion.THROTTLE,
                 rate_targets=None,
                 add_constraints=True,
+                #opts={
+                #    'continuity': False,
+                #}
             )
 
         # For heterogeneous-engine cases, we may have throttle allocation control.

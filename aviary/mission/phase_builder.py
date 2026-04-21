@@ -449,7 +449,7 @@ class PhaseBuilder(ABC):
             )
 
     def add_control(
-        self, name, target, rate_targets=None, rate2_targets=None, add_constraints=True
+        self, name, target, rate_targets=None, rate2_targets=None, add_constraints=True, opts=None,
     ):
         """
         Add a control to this phase using the options in the phase-info.
@@ -509,6 +509,9 @@ class PhaseBuilder(ABC):
 
         if rate2_targets is not None:
             extra_options['rate2_targets'] = rate2_targets
+
+        if opts is not None:
+            extra_options.update(opts)
 
         phase.add_control(target, targets=target, opt=opt, **extra_options)
 
