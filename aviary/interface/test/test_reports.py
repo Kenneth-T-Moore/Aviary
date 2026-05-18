@@ -7,12 +7,13 @@ import openmdao.api as om
 from openmdao.core.problem import _clear_problem_names
 from openmdao.utils.testing_utils import set_env_vars, use_tempdirs
 
-from aviary.interface.default_phase_info.height_energy import phase_info
-from aviary.interface.methods_for_level1 import run_aviary
-from aviary.interface.methods_for_level2 import AviaryProblem
-from aviary.subsystems.subsystem_builder_base import SubsystemBuilderBase
+from aviary.models.missions.energy_state_default import phase_info
+from aviary.interface.run_aviary import run_aviary
+from aviary.core.aviary_problem import AviaryProblem
+from aviary.subsystems.subsystem_builder import SubsystemBuilder
 from aviary.utils.develop_metadata import add_meta_data
 from aviary.variable_info.variable_meta_data import CoreMetaData
+import aviary.api as av
 
 
 @use_tempdirs
@@ -25,7 +26,7 @@ class TestReports(unittest.TestCase):
     def test_timeseries_report(self):
         local_phase_info = deepcopy(phase_info)
         self.prob = run_aviary(
-            'models/test_aircraft/aircraft_for_bench_FwFm.csv',
+            'validation_cases/validation_data/test_models/aircraft_for_bench_FwFm.csv',
             local_phase_info,
             optimizer='SLSQP',
             max_iter=0,
@@ -40,7 +41,7 @@ class TestReports(unittest.TestCase):
             'electric_power_in_total (kW)',
             'fuel_flow_rate_negative_total (lbm/h)',
             'mach (unitless)',
-            'mach_rate (unitless/s)',
+            'mach_rate (1/s)',
             'mass (kg)',
             'specific_energy_rate_excess (m/s)',
             'throttle (unitless)',
@@ -54,16 +55,16 @@ class TestReports(unittest.TestCase):
                 '0.0',
                 '8.333333333333337',
                 '1.0',
-                '21108.418300418845',
+                '21108.341035874902',
                 '0.0',
-                '-10492.593707324704',
+                '-10492.721631142893',
                 '0.2',
                 '0.0001354166666666668',
                 '79560.101698',
-                '12.350271989430475',
-                '0.565484286063171',
-                '28478.788920867584',
-                '68.05737270077049',
+                '12.349371130670201',
+                '0.5654905755095957',
+                '28479.14295846102',
+                '68.0522432380756',
             ]
         ]
 
@@ -89,15 +90,20 @@ class TestReports(unittest.TestCase):
     @set_env_vars(TESTFLO_RUNNING='0', OPENMDAO_REPORTS='check_input_report')
     def test_check_input_report(self):
         # Make sure the input check works with custom metadata.
+        # Make sure it also works when a user forgets to create metadata.
 
-        class ExtraBuilder(SubsystemBuilderBase):
-            def build_pre_mission(self, aviary_inputs):
-                comp = om.ExecComp('z = 2*x')
+        class ExtraBuilder(SubsystemBuilder):
+            def build_pre_mission(self, aviary_inputs, subsystem_options=None):
+                comp = om.ExecComp(['z = 2*x', 'p = q'])
                 wing_group = om.Group()
                 wing_group.add_subsystem(
                     'aerostructures',
                     comp,
-                    promotes_inputs=[('x', 'aircraft:custom_var')],
+                    promotes_inputs=[
+                        ('x', 'aircraft:custom_var'),
+                        ('q', 'aircraft:forgotten_input'),
+                    ],
+                    promotes_outputs=[('p', 'aircraft:forgotten_out')],
                 )
                 return wing_group
 
@@ -115,23 +121,41 @@ class TestReports(unittest.TestCase):
 
         prob = AviaryProblem()
         prob.load_inputs(
-            'models/test_aircraft/aircraft_for_bench_FwFm.csv',
+            'validation_cases/validation_data/test_models/aircraft_for_bench_FwFm.csv',
             local_phase_info,
         )
+
         prob.check_and_preprocess_inputs()
+
         prob.meta_data = metadata
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
-
-        prob.link_phases()
+        prob.build_model()
 
         prob.setup()
 
         # no need to run this model, just generate the report.
         prob.final_setup()
 
+    @set_env_vars(TESTFLO_RUNNING='0')
+    def test_multiple_off_design_report_directories(self):
+        prob = av.AviaryProblem(verbosity=0)
+        prob.load_inputs(
+            'models/aircraft/advanced_single_aisle/advanced_single_aisle_FLOPS.csv', phase_info
+        )
+        prob.check_and_preprocess_inputs()
+        prob.build_model()
+        prob.add_driver('SLSQP', max_iter=50)
+        prob.add_design_variables()
+        prob.add_objective()
+        prob.setup()
+        prob.run_aviary_problem()
+        prob.run_off_design_mission(problem_type='off_design_max_range', mission_gross_mass=115000)
+        prob.run_off_design_mission(problem_type='off_design_min_fuel', mission_range=1250)
+        assert Path('testflo_off_design_1_out').is_dir()
+        assert Path('testflo_off_design_out').is_dir()
+
 
 if __name__ == '__main__':
-    unittest.main()
+    # unittest.main()
+    test = TestReports()
+    test.test_multiple_off_design_report_directories()

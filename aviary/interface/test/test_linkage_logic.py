@@ -4,72 +4,67 @@ import unittest
 from openmdao.core.problem import _clear_problem_names
 from openmdao.utils.testing_utils import use_tempdirs
 
-from aviary.interface.methods_for_level2 import AviaryProblem
+from aviary.core.aviary_problem import AviaryProblem
 
 
 @use_tempdirs
 class AircraftMissionTestSuite(unittest.TestCase):
     def setUp(self):
         cruise_dict = {
-            'subsystem_options': {'core_aerodynamics': {'method': 'computed'}},
+            'subsystem_options': {'aerodynamics': {'method': 'computed'}},
             'user_options': {
-                'optimize_mach': False,
-                'optimize_altitude': False,
-                'polynomial_control_order': 1,
                 'num_segments': 5,
                 'order': 3,
-                'solve_for_distance': False,
-                'initial_mach': (0.72, 'unitless'),
-                'final_mach': (0.72, 'unitless'),
+                'mach_optimize': False,
+                'mach_initial': (0.72, 'unitless'),
+                'mach_final': (0.72, 'unitless'),
                 'mach_bounds': ((0.7, 0.74), 'unitless'),
-                'initial_altitude': (32000.0, 'ft'),
-                'final_altitude': (34000.0, 'ft'),
+                'altitude_optimize': False,
+                'altitude_initial': (32000.0, 'ft'),
+                'altitude_final': (34000.0, 'ft'),
                 'altitude_bounds': ((23000.0, 38000.0), 'ft'),
                 'throttle_enforcement': 'boundary_constraint',
-                'fix_initial': False,
-                'constrain_final': False,
-                'fix_duration': False,
-                'initial_bounds': ((64.0, 192.0), 'min'),
-                'duration_bounds': ((56.5, 169.5), 'min'),
+                'time_initial_bounds': ((64.0, 192.0), 'min'),
+                'time_duration_bounds': ((56.5, 169.5), 'min'),
             },
         }
         cruise_dicts = [copy.deepcopy(cruise_dict) for _ in range(5)]
         for i, cruise_dict in enumerate(cruise_dicts):
-            cruise_dict['user_options']['initial_bounds'] = ((64.0 + i * 10, 192.0 + i * 10), 'min')
-            cruise_dict['user_options']['duration_bounds'] = (
+            cruise_dict['user_options']['time_initial_bounds'] = (
+                (64.0 + i * 10, 192.0 + i * 10),
+                'min',
+            )
+            cruise_dict['user_options']['time_duration_bounds'] = (
                 (56.5 + i * 10, 169.5 + i * 10),
                 'min',
             )
-        cruise_dicts[0]['user_options']['optimize_mach'] = True
-        cruise_dicts[1]['user_options']['optimize_mach'] = True
-        cruise_dicts[4]['user_options']['optimize_mach'] = True
-        cruise_dicts[2]['user_options']['optimize_altitude'] = True
-        cruise_dicts[3]['user_options']['optimize_altitude'] = True
+        cruise_dicts[0]['user_options']['mach_optimize'] = True
+        cruise_dicts[1]['user_options']['mach_optimize'] = True
+        cruise_dicts[4]['user_options']['mach_optimize'] = True
+        cruise_dicts[2]['user_options']['altitude_optimize'] = True
+        cruise_dicts[3]['user_options']['altitude_optimize'] = True
 
         # Create the phase_info
         self.phase_info = {
             'pre_mission': {'include_takeoff': False, 'optimize_mass': True},
             'climb': {
-                'subsystem_options': {'core_aerodynamics': {'method': 'computed'}},
+                'subsystem_options': {'aerodynamics': {'method': 'computed'}},
                 'user_options': {
-                    'optimize_mach': False,
-                    'optimize_altitude': False,
-                    'polynomial_control_order': 1,
                     'num_segments': 5,
                     'order': 3,
-                    'solve_for_distance': False,
-                    'initial_mach': (0.2, 'unitless'),
-                    'final_mach': (0.72, 'unitless'),
+                    'mach_optimize': False,
+                    'mach_polynomial_order': 1,
+                    'mach_initial': (0.2, 'unitless'),
+                    'mach_final': (0.72, 'unitless'),
                     'mach_bounds': ((0.18, 0.74), 'unitless'),
-                    'initial_altitude': (0.0, 'ft'),
-                    'final_altitude': (32000.0, 'ft'),
+                    'altitude_optimize': False,
+                    'altitude_polynomial_order': 1,
+                    'altitude_initial': (0.0, 'ft'),
+                    'altitude_final': (32000.0, 'ft'),
                     'altitude_bounds': ((0.0, 34000.0), 'ft'),
                     'throttle_enforcement': 'path_constraint',
-                    'fix_initial': True,
-                    'constrain_final': False,
-                    'fix_duration': False,
-                    'initial_bounds': ((0.0, 0.0), 'min'),
-                    'duration_bounds': ((64.0, 192.0), 'min'),
+                    'time_initial': (0.0, 'min'),
+                    'time_duration_bounds': ((64.0, 192.0), 'min'),
                 },
             },
             'cruise0': cruise_dicts[0],
@@ -78,26 +73,23 @@ class AircraftMissionTestSuite(unittest.TestCase):
             'cruise3': cruise_dicts[3],
             'cruise4': cruise_dicts[4],
             'descent': {
-                'subsystem_options': {'core_aerodynamics': {'method': 'computed'}},
+                'subsystem_options': {'aerodynamics': {'method': 'computed'}},
                 'user_options': {
-                    'optimize_mach': False,
-                    'optimize_altitude': False,
-                    'polynomial_control_order': 1,
                     'num_segments': 5,
                     'order': 3,
-                    'solve_for_distance': False,
-                    'initial_mach': (0.72, 'unitless'),
-                    'final_mach': (0.36, 'unitless'),
+                    'mach_optimize': False,
+                    'mach_polynomial_order': 1,
+                    'mach_initial': (0.72, 'unitless'),
+                    'mach_final': (0.36, 'unitless'),
                     'mach_bounds': ((0.34, 0.74), 'unitless'),
-                    'initial_altitude': (34000.0, 'ft'),
-                    'final_altitude': (500.0, 'ft'),
+                    'altitude_optimize': False,
+                    'altitude_polynomial_order': 1,
+                    'altitude_initial': (34000.0, 'ft'),
+                    'altitude_final': (500.0, 'ft'),
                     'altitude_bounds': ((0.0, 38000.0), 'ft'),
                     'throttle_enforcement': 'path_constraint',
-                    'fix_initial': False,
-                    'constrain_final': True,
-                    'fix_duration': False,
-                    'initial_bounds': ((120.5, 361.5), 'min'),
-                    'duration_bounds': ((29.0, 87.0), 'min'),
+                    'time_initial_bounds': ((120.5, 361.5), 'min'),
+                    'time_duration_bounds': ((29.0, 87.0), 'min'),
                 },
             },
             'post_mission': {
@@ -107,7 +99,9 @@ class AircraftMissionTestSuite(unittest.TestCase):
             },
         }
 
-        self.aircraft_definition_file = 'models/test_aircraft/aircraft_for_bench_FwFm.csv'
+        self.aircraft_definition_file = (
+            'validation_cases/validation_data/test_models/aircraft_for_bench_FwFm.csv'
+        )
         self.make_plots = False
         self.max_iter = 0
 
@@ -120,17 +114,9 @@ class AircraftMissionTestSuite(unittest.TestCase):
         # Allow for user overrides here
         prob.load_inputs(self.aircraft_definition_file, self.phase_info)
 
-        # Preprocess inputs
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-
-        prob.add_phases()
-
-        prob.add_post_mission_systems()
-
-        # Link phases and variables
-        prob.link_phases()
+        prob.build_model()
 
         prob.add_driver('SLSQP', verbosity=0)
 
@@ -141,8 +127,6 @@ class AircraftMissionTestSuite(unittest.TestCase):
         prob.add_objective()
 
         prob.setup()
-
-        prob.set_initial_guesses()
 
         prob.run_aviary_problem(run_driver=False, make_plots=False)
 

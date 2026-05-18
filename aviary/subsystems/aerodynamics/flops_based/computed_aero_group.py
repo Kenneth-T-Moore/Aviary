@@ -73,8 +73,8 @@ class ComputedAeroGroup(om.Group):
                 Dynamic.Atmosphere.MACH,
                 Dynamic.Vehicle.LIFT,
                 Dynamic.Atmosphere.STATIC_PRESSURE,
-                Mission.Design.MACH,
-                Mission.Design.LIFT_COEFFICIENT,
+                Aircraft.Design.MACH,
+                Aircraft.Design.LIFT_COEFFICIENT,
                 Aircraft.Wing.AREA,
                 Aircraft.Wing.ASPECT_RATIO,
                 Aircraft.Wing.MAX_CAMBER_AT_70_SEMISPAN,
@@ -105,7 +105,7 @@ class ComputedAeroGroup(om.Group):
             comp,
             promotes_inputs=[
                 Dynamic.Atmosphere.MACH,
-                Mission.Design.MACH,
+                Aircraft.Design.MACH,
                 Aircraft.Design.BASE_AREA,
                 Aircraft.Wing.AREA,
                 Aircraft.Wing.ASPECT_RATIO,
@@ -169,7 +169,7 @@ class ComputedAeroGroup(om.Group):
             buf,
             promotes_inputs=[
                 Dynamic.Atmosphere.MACH,
-                Mission.Design.MACH,
+                Aircraft.Design.MACH,
                 Aircraft.Wing.ASPECT_RATIO,
                 Aircraft.Wing.MAX_CAMBER_AT_70_SEMISPAN,
                 Aircraft.Wing.SWEEP,
@@ -181,6 +181,8 @@ class ComputedAeroGroup(om.Group):
         self.connect('InducedDrag.induced_drag_coeff', 'Drag.induced_drag_coeff')
         self.connect('CompressibilityDrag.compress_drag_coeff', 'Drag.compress_drag_coeff')
         self.connect('SkinFrictionDrag.skin_friction_drag_coeff', 'Drag.skin_friction_drag_coeff')
+
+        self.set_input_defaults(Aircraft.Wing.AREA, units='ft**2', val=0.0)
 
 
 class ComputedDrag(om.Group):

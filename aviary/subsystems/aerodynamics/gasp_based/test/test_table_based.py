@@ -16,14 +16,10 @@ from aviary.variable_info.variables import Aircraft, Dynamic, Mission
 
 
 class TestCruiseAero(unittest.TestCase):
-    @unittest.skipIf(
-        version.parse(openmdao.__version__) < version.parse('3.26'),
-        'Older version of OpenMDAO does not properly skip Metamodel.',
-    )
     def test_climb(self):
         prob = om.Problem()
 
-        fp = 'subsystems/aerodynamics/gasp_based/data/large_single_aisle_1_aero_free.txt'
+        fp = 'models/large_single_aisle_1/aerodynamics_tables/large_single_aisle_1_aero_free.csv'
         prob.model = TabularCruiseAero(num_nodes=8, aero_data=fp)
 
         prob.setup(force_alloc_complex=True)
@@ -47,13 +43,9 @@ class TestCruiseAero(unittest.TestCase):
         partial_data = prob.check_partials(method='cs', out_stream=None)
         assert_check_partials(partial_data, atol=4e-7, rtol=2e-7)
 
-    @unittest.skipIf(
-        version.parse(openmdao.__version__) < version.parse('3.26'),
-        'Older version of OpenMDAO does not properly skip Metamodel.',
-    )
     def test_cruise(self):
         prob = om.Problem()
-        ref = 'subsystems/aerodynamics/gasp_based/data/large_single_aisle_1_aero_free.txt'
+        ref = 'models/large_single_aisle_1/aerodynamics_tables/large_single_aisle_1_aero_free.csv'
         fp = get_aviary_resource_path(ref)
         prob.model = TabularCruiseAero(num_nodes=2, aero_data=fp)
         prob.setup(force_alloc_complex=True)
@@ -82,19 +74,15 @@ class TestLowSpeedAero(unittest.TestCase):
     flap_defl_to = 10
 
     free_data = get_aviary_resource_path(
-        'subsystems/aerodynamics/gasp_based/data/large_single_aisle_1_aero_free.txt'
+        'models/large_single_aisle_1/aerodynamics_tables/large_single_aisle_1_aero_free.csv'
     )
     flaps_data = get_aviary_resource_path(
-        'subsystems/aerodynamics/gasp_based/data/large_single_aisle_1_aero_flaps.txt'
+        'models/large_single_aisle_1/aerodynamics_tables/large_single_aisle_1_aero_flaps.csv'
     )
     ground_data = get_aviary_resource_path(
-        'subsystems/aerodynamics/gasp_based/data/large_single_aisle_1_aero_ground.txt'
+        'models/large_single_aisle_1/aerodynamics_tables/large_single_aisle_1_aero_ground.csv'
     )
 
-    @unittest.skipIf(
-        version.parse(openmdao.__version__) < version.parse('3.26'),
-        'Older version of OpenMDAO does not properly skip Metamodel.',
-    )
     def test_groundroll(self):
         # takeoff with flaps applied, gear down, zero alt
         prob = om.Problem()
@@ -111,7 +99,7 @@ class TestLowSpeedAero(unittest.TestCase):
         prob.set_val('t_curr', [0.0, 1.0, 2.0, 3.0])
         prob.set_val(Dynamic.Mission.ALTITUDE, 0)
         prob.set_val(Dynamic.Atmosphere.MACH, [0.0, 0.009, 0.018, 0.026])
-        prob.set_val(Mission.Design.GROSS_MASS, 175400.0)
+        prob.set_val(Aircraft.Design.GROSS_MASS, 175400.0)
         prob.set_val(Dynamic.Vehicle.ANGLE_OF_ATTACK, 0)
         # TODO set q if we want to test lift/drag forces
 
@@ -132,10 +120,6 @@ class TestLowSpeedAero(unittest.TestCase):
         )  # fd because there is a cs in the time ramp
         assert_check_partials(partial_data, atol=3e-7, rtol=6e-5)
 
-    @unittest.skipIf(
-        version.parse(openmdao.__version__) < version.parse('3.26'),
-        'Older version of OpenMDAO does not properly skip Metamodel.',
-    )
     def test_takeoff(self):
         # takeoff crossing flap retraction and gear retraction points
         prob = om.Problem()
@@ -170,7 +154,7 @@ class TestLowSpeedAero(unittest.TestCase):
         prob.set_val('flap_defl', self.flap_defl_to)
         prob.set_val('t_init_gear', self.t_init_gear_to)
         prob.set_val('t_init_flaps', self.t_init_flaps_to)
-        prob.set_val(Mission.Design.GROSS_MASS, 175400.0)
+        prob.set_val(Aircraft.Design.GROSS_MASS, 175400.0)
         prob.run_model()
 
         cl_exp = np.array([1.3734, 1.3489, 1.3179, 1.2979, 1.1356, 1.0645, 0.9573, 0.8876])
@@ -202,7 +186,7 @@ class GearDragIncrementTest(unittest.TestCase):
             promotes_outputs=['*'],
         )
         prob.setup(check=False, force_alloc_complex=True)
-        prob.set_val(Mission.Design.GROSS_MASS, 175000, 'lbm')
+        prob.set_val(Aircraft.Design.GROSS_MASS, 175000, 'lbm')
         prob.set_val(Aircraft.Wing.AREA, 1000, 'ft**2')
         prob.set_val('flap_defl', [0.0, 0.3], 'deg')
         prob.run_model()
@@ -235,10 +219,63 @@ class GearDragIncrementTest2(unittest.TestCase):
         )
         prob.model.set_input_defaults(Aircraft.Wing.AREA, val=1370.3)
         prob.setup(check=False, force_alloc_complex=True)
-        prob.set_val(Mission.Design.GROSS_MASS, 175400.0)
+        prob.set_val(Aircraft.Design.GROSS_MASS, 175400.0)
 
         partial_data = prob.check_partials(out_stream=None, method='cs')
         assert_check_partials(partial_data, atol=1e-12, rtol=1e-12)
+
+
+class BWBCruiseAeroTest(unittest.TestCase):
+    """
+    Test of table based BWB cruise using a table generated by a CFD tool.
+    The table is modified for demonstration purposes only. It does not represent any actual result.
+    """
+
+    def test_climb(self):
+        prob = om.Problem()
+
+        fp = 'models/aircraft/blended_wing_body/aerodynamics_tables/generic_BWB_GASP_aero.csv'
+        prob.model = TabularCruiseAero(num_nodes=3, aero_data=fp)
+
+        prob.setup(force_alloc_complex=True)
+
+        prob.set_val(Dynamic.Atmosphere.MACH, [0.7, 0.8, 0.82])
+        prob.set_val(Dynamic.Vehicle.ANGLE_OF_ATTACK, [5.0, 10.0, 2.0])
+        prob.set_val(
+            Dynamic.Mission.ALTITUDE,
+            [10000.0, 30000.0, 35000],
+        )
+        prob.run_model()
+
+        cl_exp = np.array([0.1509, 0.410764, -0.0384316])
+        cd_exp = np.array([0.00610224, 0.0205816, 0.00460256])
+
+        assert_near_equal(prob['CL'], cl_exp, tolerance=0.001)
+        assert_near_equal(prob['CD'], cd_exp, tolerance=0.001)
+
+        partial_data = prob.check_partials(method='cs', out_stream=None)
+        assert_check_partials(partial_data, atol=4e-7, rtol=2e-7)
+
+    def test_cruise(self):
+        prob = om.Problem()
+        ref = 'models/aircraft/blended_wing_body/aerodynamics_tables/generic_BWB_GASP_aero.csv'
+        fp = get_aviary_resource_path(ref)
+        prob.model = TabularCruiseAero(num_nodes=2, aero_data=fp)
+        prob.setup(force_alloc_complex=True)
+
+        prob.set_val(Dynamic.Atmosphere.MACH, [0.8, 0.82])
+        prob.set_val(Dynamic.Vehicle.ANGLE_OF_ATTACK, [4.216, 3.146])
+        prob.set_val(Dynamic.Mission.ALTITUDE, [37500, 41000])
+        prob.run_model()
+
+        cl_exp = np.array([0.1276112, 0.05515637])
+        cd_exp = np.array([0.00599297, 0.00570541])
+
+        assert_near_equal(prob['CL'], cl_exp, tolerance=0.001)
+        assert_near_equal(prob['CD'], cd_exp, tolerance=0.001)
+
+        partial_data = prob.check_partials(method='cs', out_stream=None)
+        assert_check_partials(partial_data, atol=9e-8, rtol=2e-7)
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials, assert_near_equal
+from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
 from aviary.subsystems.mass.flops_based.nacelle import NacelleMass
@@ -16,10 +17,12 @@ from aviary.validation_cases.validation_tests import (
     get_flops_case_names,
     get_flops_inputs,
     print_case,
+    Version,
 )
 from aviary.variable_info.variables import Aircraft, Settings
 
 
+@use_tempdirs
 class NacelleMassTest(unittest.TestCase):
     def setUp(self):
         self.prob = om.Problem()
@@ -44,6 +47,7 @@ class NacelleMassTest(unittest.TestCase):
         prob.setup(check=False, force_alloc_complex=True)
 
         flops_validation_test(
+            self,
             self.prob,
             case_name,
             input_keys=[
@@ -53,6 +57,7 @@ class NacelleMassTest(unittest.TestCase):
                 Aircraft.Engine.SCALED_SLS_THRUST,
             ],
             output_keys=Aircraft.Nacelle.MASS,
+            version=Version.TRANSPORT_and_BWB,
         )
 
     def test_IO(self):
@@ -64,7 +69,7 @@ class NacelleMassTest(unittest.TestCase):
         options = AviaryValues()
 
         options.set_val(Aircraft.Engine.NUM_ENGINES, 4)
-        options.set_val(Aircraft.Engine.DATA_FILE, get_path('models/engines/turbofan_28k.deck'))
+        options.set_val(Aircraft.Engine.DATA_FILE, get_path('models/engines/turbofan_28k.csv'))
         # suppress some warning messages about required option for EngineDecks
         options.set_val(Settings.VERBOSITY, 0)
         engineModel1 = EngineDeck(options=options)
@@ -119,7 +124,7 @@ class NacelleMassTest2(unittest.TestCase):
     def test_case(self):
         prob = om.Problem()
 
-        inputs = get_flops_inputs('N3CC', preprocess=True)
+        inputs = get_flops_inputs('AdvancedSingleAisle', preprocess=True)
 
         options = {
             Aircraft.Engine.NUM_ENGINES: inputs.get_val(Aircraft.Engine.NUM_ENGINES),
@@ -143,7 +148,7 @@ class NacelleMassTest2(unittest.TestCase):
         prob = om.Problem()
         options = AviaryValues()
         options.set_val(Aircraft.Engine.NUM_ENGINES, 4)
-        options.set_val(Aircraft.Engine.DATA_FILE, get_path('models/engines/turbofan_28k.deck'))
+        options.set_val(Aircraft.Engine.DATA_FILE, get_path('models/engines/turbofan_28k.csv'))
         # suppress some warning messages about required option for EngineDecks
         options.set_val(Settings.VERBOSITY, 0)
         engineModel1 = EngineDeck(options=options)

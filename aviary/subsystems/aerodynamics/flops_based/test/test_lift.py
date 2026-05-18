@@ -2,6 +2,7 @@ import unittest
 
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials, assert_near_equal
+from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
 from aviary.subsystems.aerodynamics.flops_based.lift import LiftEqualsWeight, SimpleLift
@@ -13,9 +14,12 @@ from aviary.validation_cases.validation_tests import (
 )
 from aviary.variable_info.variables import Aircraft, Dynamic
 
-data_sets = get_flops_case_names(only=['LargeSingleAisle1FLOPS', 'LargeSingleAisle2FLOPS', 'N3CC'])
+data_sets = get_flops_case_names(
+    only=['LargeSingleAisle1FLOPS', 'LargeSingleAisle2FLOPS', 'advanced_single_aisle']
+)
 
 
+@use_tempdirs
 class SimpleLiftTest(unittest.TestCase):
     @parameterized.expand(data_sets, name_func=print_case)
     def test_case(self, case_name):
@@ -73,6 +77,7 @@ class SimpleLiftTest(unittest.TestCase):
         assert_near_equal(prob.get_val(Dynamic.Vehicle.LIFT), mission_simple_data[case_name], 1e-6)
 
 
+@use_tempdirs
 class LiftEqualsWeightTest(unittest.TestCase):
     @parameterized.expand(data_sets, name_func=print_case)
     def test_case(self, case_name):
@@ -156,13 +161,13 @@ _mission_data.set_val(Dynamic.Vehicle.MASS, [169730.0, 169200.0, 167400.0], 'lbm
 mission_simple_data['LargeSingleAisle2FLOPS'] = [755005.42, 752654.10, 744636.48]
 mission_equal_data['LargeSingleAisle2FLOPS'] = [754996.65, 752639.10, 744632.30]
 
-mission_test_data['N3CC'] = _mission_data = AviaryValues()
+mission_test_data['advanced_single_aisle'] = _mission_data = AviaryValues()
 _mission_data.set_val(Dynamic.Atmosphere.DYNAMIC_PRESSURE, [208.4, 288.5, 364.0], 'lbf/ft**2')
 _mission_data.set_val('cl', [0.50651, 0.36573, 0.28970])
 _mission_data.set_val(Dynamic.Vehicle.LIFT, [128777.0, 128721.0, 128667.0], 'lbf')
 _mission_data.set_val(Dynamic.Vehicle.MASS, [128777.0, 128721.0, 128667.0], 'lbm')
-mission_simple_data['N3CC'] = [572838.22, 572601.72, 572263.60]
-mission_equal_data['N3CC'] = [572828.63, 572579.53, 572339.33]
+mission_simple_data['advanced_single_aisle'] = [572838.22, 572601.72, 572263.60]
+mission_equal_data['advanced_single_aisle'] = [572828.63, 572579.53, 572339.33]
 
 
 if __name__ == '__main__':

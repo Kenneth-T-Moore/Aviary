@@ -7,14 +7,14 @@ from openmdao.utils.assert_utils import assert_check_partials, assert_near_equal
 from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
-from aviary.interface.default_phase_info.height_energy import phase_info
-from aviary.interface.methods_for_level2 import AviaryProblem
+from aviary.models.missions.energy_state_default import phase_info
+from aviary.core.aviary_problem import AviaryProblem
 from aviary.subsystems.aerodynamics.aerodynamics_builder import CoreAerodynamicsBuilder
 from aviary.subsystems.atmosphere.atmosphere import Atmosphere
 from aviary.subsystems.premission import CorePreMission
 from aviary.subsystems.propulsion.utils import build_engine_deck
 from aviary.utils.aviary_values import AviaryValues
-from aviary.utils.functions import set_aviary_initial_values
+from aviary.utils.functions import set_aviary_initial_values, set_aviary_input_defaults
 from aviary.utils.named_values import NamedValues
 from aviary.utils.test_utils.default_subsystems import get_default_premission_subsystems
 from aviary.validation_cases.validation_tests import get_flops_inputs, get_flops_outputs, print_case
@@ -25,8 +25,8 @@ from aviary.variable_info.variables import Aircraft, Dynamic, Mission, Settings
 FLOPS = LegacyCode.FLOPS
 GASP = LegacyCode.GASP
 
-CDI_table = 'subsystems/aerodynamics/flops_based/test/large_single_aisle_1_CDI_polar.csv'
-CD0_table = 'subsystems/aerodynamics/flops_based/test/large_single_aisle_1_CD0_polar.csv'
+CDI_table = 'validation_cases/validation_data/test_data/large_single_aisle_1_CDI_polar.csv'
+CD0_table = 'validation_cases/validation_data/test_data/large_single_aisle_1_CD0_polar.csv'
 
 
 @use_tempdirs
@@ -37,13 +37,18 @@ class TabularAeroGroupFileTest(unittest.TestCase):
         aviary_options = AviaryValues()
         aviary_options.set_val(Settings.VERBOSITY, 0)
 
-        kwargs = {'method': 'tabular', 'CDI_data': CDI_table, 'CD0_data': CD0_table}
+        subsystem_options = {'method': 'tabular', 'CDI_data': CDI_table, 'CD0_data': CD0_table}
 
         aero_builder = CoreAerodynamicsBuilder(code_origin=FLOPS)
 
         self.prob.model.add_subsystem(
             'aero',
-            aero_builder.build_mission(num_nodes=1, aviary_inputs=aviary_options, **kwargs),
+            aero_builder.build_mission(
+                num_nodes=1,
+                aviary_inputs=aviary_options,
+                user_options={},
+                subsystem_options=subsystem_options,
+            ),
             promotes_inputs=['*'],
             promotes_outputs=['*'],
         )
@@ -84,7 +89,7 @@ class TabularAeroGroupFileTest(unittest.TestCase):
 
     def test_parameters(self):
         local_phase_info = deepcopy(phase_info)
-        core_aero = local_phase_info['cruise']['subsystem_options']['core_aerodynamics']
+        core_aero = local_phase_info['cruise']['subsystem_options']['aerodynamics']
 
         core_aero['method'] = 'tabular'
         core_aero['CDI_data'] = CDI_table
@@ -95,22 +100,15 @@ class TabularAeroGroupFileTest(unittest.TestCase):
         prob = AviaryProblem(verbosity=0)
 
         prob.load_inputs(
-            'subsystems/aerodynamics/flops_based/test/data/high_wing_single_aisle.csv',
+            'validation_cases/validation_data/test_models/high_wing_single_aisle.csv',
             local_phase_info,
         )
 
-        # Preprocess inputs
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
-
-        prob.link_phases()
+        prob.build_model()
 
         prob.setup()
-
-        prob.set_initial_guesses()
 
         print('about to run')
         prob.run_model()
@@ -159,7 +157,7 @@ class TabularAeroGroupDataTest(unittest.TestCase):
         self.CDI_clean_table = CDI_clean_table
         self.CD0_clean_table = CD0_clean_table
 
-        kwargs = {
+        subsystem_options = {
             'method': 'tabular',
             'CDI_data': CDI_clean_table,
             'CD0_data': CD0_clean_table,
@@ -170,7 +168,12 @@ class TabularAeroGroupDataTest(unittest.TestCase):
 
         self.prob.model.add_subsystem(
             'aero',
-            aero_builder.build_mission(num_nodes=1, aviary_inputs=aviary_options, **kwargs),
+            aero_builder.build_mission(
+                num_nodes=1,
+                aviary_inputs=aviary_options,
+                user_options={},
+                subsystem_options=subsystem_options,
+            ),
             promotes_inputs=['*'],
             promotes_outputs=['*'],
         )
@@ -211,7 +214,7 @@ class TabularAeroGroupDataTest(unittest.TestCase):
 
     def test_parameters(self):
         local_phase_info = deepcopy(phase_info)
-        core_aero = local_phase_info['cruise']['subsystem_options']['core_aerodynamics']
+        core_aero = local_phase_info['cruise']['subsystem_options']['aerodynamics']
 
         core_aero['method'] = 'tabular'
         core_aero['connect_training_data'] = True
@@ -220,21 +223,19 @@ class TabularAeroGroupDataTest(unittest.TestCase):
         local_phase_info.pop('climb')
         local_phase_info.pop('descent')
 
+        # This is a somewhat contrived problem, so pick a mass.
+        local_phase_info['cruise']['user_options']['mass_initial'] = (150000.0, 'lbm')
+
         prob = AviaryProblem()
 
         prob.load_inputs(
-            'subsystems/aerodynamics/flops_based/test/data/high_wing_single_aisle.csv',
+            'validation_cases/validation_data/test_models/high_wing_single_aisle.csv',
             local_phase_info,
         )
 
-        # Preprocess inputs
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
-
-        prob.link_phases()
+        prob.build_model()
 
         # Connect or set.
         prob.aviary_inputs.set_val(Aircraft.Design.LIFT_INDEPENDENT_DRAG_POLAR, self.CD0_values)
@@ -242,16 +243,15 @@ class TabularAeroGroupDataTest(unittest.TestCase):
 
         prob.setup()
 
-        prob.set_initial_guesses()
-
         prob.run_model()
 
         assert_near_equal(prob.get_val('traj.cruise.rhs_all.drag', units='lbf')[0], 9907.0, 1.0e-3)
 
 
-data_sets = ['LargeSingleAisle1FLOPS', 'LargeSingleAisle2FLOPS', 'N3CC']
+data_sets = ['LargeSingleAisle1FLOPS', 'LargeSingleAisle2FLOPS', 'AdvancedSingleAisle']
 
 
+@use_tempdirs
 class ComputedVsTabularTest(unittest.TestCase):
     @parameterized.expand(data_sets, name_func=print_case)
     def test_case(self, case_name):
@@ -271,7 +271,7 @@ class ComputedVsTabularTest(unittest.TestCase):
 
         flops_inputs.set_val(Settings.VERBOSITY, 0)
 
-        mass, units = flops_inputs.get_item(Mission.Design.GROSS_MASS)
+        mass, units = flops_inputs.get_item(Aircraft.Design.GROSS_MASS)
         mass = mass * 0.92
 
         alt = 10582
@@ -321,13 +321,18 @@ class ComputedVsTabularTest(unittest.TestCase):
 
         prob = om.Problem()
 
-        kwargs = {'method': 'tabular', 'CDI_data': CDI_data, 'CD0_data': CD0_data}
+        subsystem_options = {'method': 'tabular', 'CDI_data': CDI_data, 'CD0_data': CD0_data}
 
         aero_builder = CoreAerodynamicsBuilder(code_origin=FLOPS)
 
         prob.model.add_subsystem(
             'aero',
-            aero_builder.build_mission(num_nodes=1, aviary_inputs=flops_inputs, **kwargs),
+            aero_builder.build_mission(
+                num_nodes=1,
+                aviary_inputs=flops_inputs,
+                user_options={},
+                subsystem_options=subsystem_options,
+            ),
             promotes_inputs=['*'],
             promotes_outputs=['*'],
         )
@@ -362,7 +367,7 @@ def _default_CD0_data():
     mach_range = _make_default_mach_range()  # len == 12
 
     # fmt: off
-    CD0 = [
+    CD0 = np.array([
         [
             0.02182, 0.02228, 0.02278, 0.02332, 0.02389, 0.02451,
             0.02518, 0.0259, 0.02689, 0.02801, 0.02921, 0.03049,
@@ -415,7 +420,7 @@ def _default_CD0_data():
             0.03737, 0.03772, 0.03809, 0.03849, 0.03891, 0.03937,
             0.03987, 0.04054, 0.0413, 0.0421, 0.04294, 0.04384,
         ],
-    ]
+    ])
     # fmt: on
 
     # mach_list, alt_list = np.meshgrid(mach_range, alt_range)
@@ -437,7 +442,7 @@ def _default_CDI_data():
     cl_range = _make_default_cl_range()  # len == 15
 
     # fmt: off
-    CDI = [
+    CDI = np.array([
         [
             0.00114, 0.00138, 0.0019, 0.0027, 0.00378, 0.00511, 0.00669,
             0.00837, 0.0104, 0.01295, 0.01558, 0.01837, 0.0215, 0.025, 0.02888,
@@ -486,7 +491,7 @@ def _default_CDI_data():
             0.00636, 0.00327, 0.00224, 0.00324, 0.00627, 0.01154, 0.01915,
             0.02577, 0.03848, 0.05251, 0.05737, 0.06445, 0.0703, 0.07582, 0.08127,
         ],
-    ]  # 11
+    ])  # 11
     # fmt: on
 
     # cl_list, mach_list = np.meshgrid(cl_range, mach_range)
@@ -504,23 +509,23 @@ def _default_CDI_data():
 
 # fmt: off
 def _make_default_alt_range():
-    alt_range = [
+    alt_range = np.array([
         0, 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000, 55000, 60000
-    ]
+    ])
 
     return alt_range
 
 
 def _make_default_mach_range():
-    mach_range = [
+    mach_range = np.array([
         0.200, 0.300, 0.400, 0.500, 0.600, 0.700, 0.750, 0.775, 0.800, 0.825, 0.850, 0.875
-    ]
+    ])
 
     return mach_range
 
 
 def _make_default_cl_range():
-    cl_range = [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85]
+    cl_range = np.array([0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85])
 
     return cl_range
 # fmt: on
@@ -576,7 +581,7 @@ def _computed_aero_drag_data(flops_inputs: AviaryValues, design_altitude, units)
     CDI_data.set_val('lift_dependent_drag_coefficient', CDI)
 
     # calculate lift-independent drag coefficient table
-    mass, units = flops_inputs.get_item(Mission.Design.GROSS_MASS)
+    mass, units = flops_inputs.get_item(Aircraft.Design.GROSS_MASS)
     mass = mass * 0.9
 
     mach = seed
@@ -628,6 +633,16 @@ def _get_computed_aero_data_at_altitude(altitude, units):
 def _run_computed_aero_harness(flops_inputs, dynamic_inputs, num_nodes):
     prob = om.Problem(_ComputedAeroHarness(num_nodes=num_nodes, aviary_options=flops_inputs))
 
+    varnames = [
+        Aircraft.Fuselage.WETTED_AREA,
+        Aircraft.HorizontalTail.WETTED_AREA,
+        Aircraft.VerticalTail.WETTED_AREA,
+        Aircraft.Wing.AREA,
+        Aircraft.Wing.ASPECT_RATIO,
+        Aircraft.Wing.WETTED_AREA,
+    ]
+    set_aviary_input_defaults(prob.model, varnames, flops_inputs)
+
     setup_model_options(prob, flops_inputs)
 
     prob.setup()
@@ -670,18 +685,27 @@ class _ComputedAeroHarness(om.Group):
         # Upstream pre-mission analysis for aero
         pre_mission: om.Group = self.add_subsystem(
             'pre_mission',
-            CorePreMission(aviary_options=aviary_options, subsystems=default_premission_subsystems),
+            CorePreMission(
+                aviary_options=aviary_options,
+                subsystems=default_premission_subsystems,
+                subsystem_options={},
+            ),
             promotes_inputs=['aircraft:*'],
-            promotes_outputs=['aircraft:*', 'mission:*'],
+            promotes_outputs=['aircraft:*'],
         )
 
-        kwargs = {'method': 'computed', 'gamma': gamma}
+        subsystem_options = {'method': 'computed', 'gamma': gamma}
 
         aero_builder = CoreAerodynamicsBuilder(code_origin=FLOPS)
 
         self.add_subsystem(
             'aero',
-            aero_builder.build_mission(num_nodes=nn, aviary_inputs=aviary_options, **kwargs),
+            aero_builder.build_mission(
+                num_nodes=nn,
+                aviary_inputs=aviary_options,
+                user_options={},
+                subsystem_options=subsystem_options,
+            ),
             promotes_inputs=['*'],
             promotes_outputs=['*'],
         )
@@ -696,14 +720,14 @@ _design_altitudes = AviaryValues(
     {
         'LargeSingleAisle1FLOPS': (41000, 'ft'),
         'LargeSingleAisle2FLOPS': (41000, 'ft'),
-        'N3CC': (43000, 'ft'),
+        'AdvancedSingleAisle': (43000, 'ft'),
     }
 )
 # endregion - computed aero data
 
 
 if __name__ == '__main__':
-    # unittest.main()
-    test = TabularAeroGroupDataTest()
-    test.setUp()
-    test.test_parameters()
+    unittest.main()
+    # test = TabularAeroGroupDataTest()
+    # test.setUp()
+    # test.test_parameters()

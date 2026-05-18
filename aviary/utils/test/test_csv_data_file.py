@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import unittest
 import warnings
@@ -7,7 +8,7 @@ from openmdao.utils.testing_utils import use_tempdirs
 
 from aviary.utils.csv_data_file import read_data_file, write_data_file
 from aviary.utils.functions import get_path
-from aviary.utils.named_values import NamedValues, get_items, get_keys
+from aviary.utils.named_values import NamedValues
 from aviary.utils.process_input_decks import parse_inputs
 from aviary.variable_info.options import get_option_defaults
 from aviary.variable_info.variable_meta_data import CoreMetaData, add_meta_data
@@ -28,6 +29,8 @@ class TestAviaryCSV(unittest.TestCase):
             }
         )
         self.comments = ['comment 1', 'comment 2# more comment 2', 'inline comment']
+        self.inputs = ['aircraft:wing:span', 'aircraft:crew_and_payload:num_passengers']
+        self.outputs = ['fake_var']
 
         # what the csv should look like after writing
         self.expected_contents = [
@@ -35,15 +38,15 @@ class TestAviaryCSV(unittest.TestCase):
             '# comment 2# more comment 2',
             '# inline comment',
             '',
-            'aircraft:wing:span (ft), aircraft:crew_and_payload:num_passengers, fake_var (lbm)',
-            '                  15.24,                                      125,          0.932',
-            '                    118,                                       28,        1023.54',
-            '                     90,                                    0.355,              0',
-            '                    171,                                       44,            -13',
+            'aircraft:wing:span (ft, input), aircraft:crew_and_payload:num_passengers (input), fake_var (lbm, output)',
+            '                         15.24,                                              125,                  0.932',
+            '                           118,                                               28,                1023.54',
+            '                            90,                                            0.355,                      0',
+            '                           171,                                               44,                    -13',
         ]
 
     def test_write_data_file(self):
-        write_data_file('write.csv', self.data, self.comments)
+        write_data_file('write.csv', self.data, self.outputs, self.comments)
         read_contents = []
         with open('write.csv') as file:
             for line in file:
@@ -58,37 +61,42 @@ class TestAviaryCSV(unittest.TestCase):
         # catch warnings as errors
         warnings.filterwarnings('error')
 
+        core_meta = deepcopy(CoreMetaData)
+
         try:
-            data, comments = read_data_file(self.filename, CoreMetaData)
+            data, inputs, outputs, comments = read_data_file(self.filename, core_meta)
         except UserWarning:
             # disable warnings as errors behavior for future tests
             warnings.resetwarnings()
             # run read_data_file() without catching warnings as errors so it completes
-            data, comments = read_data_file(self.filename, CoreMetaData, save_comments=True)
-            if 'fake_var' in get_keys(data):
+            data, inputs, outputs, comments = read_data_file(
+                self.filename, core_meta, save_comments=True
+            )
+            if 'fake_var' in data.keys():
                 raise RuntimeError('fake_var should be skipped when reading csv')
-            self._compare_csv_results(data, comments)
+            # output 'fake_var' should be missing, so provide self.outputs so comparison passes
+            self._compare_csv_results(data, inputs, self.outputs, comments)
         else:
             # disable warnings as errors behavior for future tests
             warnings.resetwarnings()
             raise RuntimeError('File should raise warning of skipped header data')
 
         # add fake_vars to metadata and try again - should work identically to test_read_data_file()
-        add_meta_data(key='fake_var', meta_data=CoreMetaData, units='lbm')
-        self._compare_csv_results(*read_data_file(self.filename, CoreMetaData, save_comments=True))
+        add_meta_data(key='fake_var', meta_data=core_meta, units='lbm')
+        self._compare_csv_results(*read_data_file(self.filename, core_meta, save_comments=True))
 
     def test_aliases_csv(self):
         aliases = {'Real Var': 'Fake Var'}
-        data = read_data_file(self.filename, aliases=aliases)
-        if 'fake_var' in get_keys(data):
+        data, _, _ = read_data_file(self.filename, aliases=aliases)
+        if 'fake_var' in data.keys():
             raise RuntimeError("'fake_var' should be converted to 'Real Var'")
-        if 'Real Var' not in get_keys(data):
+        if 'Real Var' not in data.keys():
             raise RuntimeError("'Real Var' is not in data read from csv")
 
     @use_tempdirs
     def test_parse_input(self):
         aircraft_values = get_option_defaults(engine=False)
-        # create a temperary csv file for testing non-existing variable name
+        # create a temporary csv file for testing non-existing variable name
         file_name = 'aircraft_for_invalid_var.csv'
         with open(file_name, 'w') as file:
             file.write('test_string,0\n')  # be ignored
@@ -100,17 +108,21 @@ class TestAviaryCSV(unittest.TestCase):
         with assert_warning(UserWarning, msg):
             parse_inputs(vehicle_deck, aircraft_values)
 
-        # remove the temperary csv file
+        # remove the temporary csv file
         os.remove(file_name)
 
-    def _compare_csv_results(self, data, comments):
+    def _compare_csv_results(self, data, inputs, outputs, comments):
         expected_data = self.data
 
         if comments != self.comments:
             raise ValueError(
                 f'Comments read from {self.filename.name} do not match expected values'
             )
-        for item in get_items(data):
+        if inputs != self.inputs:
+            raise ValueError(f'Inputs read from {self.filename.name} do not match expected values')
+        if outputs != self.outputs:
+            raise ValueError(f'Outputs read from {self.filename.name} do not match expected values')
+        for item in data.items():
             key = item[0]
             val = item[1][0]
             units = item[1][1]

@@ -50,10 +50,10 @@ def add_meta_data(
     historical_name : dict or None
         dictionary of names that the variable held in prior codes
 
-        Example: {"FLOPS":"WTIN.WNGWT", "LEAPS1": "aircraft.inputs.wing_weight", "GASP":
+        Example: {"FLOPS":"WTIN.WNGWT", "GASP":
         "INGASP.WWGHT"}
 
-        NAMELIST nameing convention
+        NAMELIST naming convention
         &<function_name>.<namelist_name>.<var_name>
 
         Example: &DEFINE.CONFIN.GW
@@ -168,10 +168,10 @@ def update_meta_data(
     historical_name : dict or None
         dictionary of names that the variable held in prior codes
 
-        Example: {"FLOPS":"WTIN.WNGWT", "LEAPS1": "aircraft.inputs.wing_weight", "GASP":
+        Example: {"FLOPS":"WTIN.WNGWT", "GASP":
         "INGASP.WWGHT"}
 
-        NAMELIST nameing convention
+        NAMELIST naming convention
         &<function_name>.<namelist_name>.<var_name>
 
         Example: &DEFINE.CONFIN.GW

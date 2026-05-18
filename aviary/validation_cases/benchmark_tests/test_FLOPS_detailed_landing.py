@@ -8,11 +8,15 @@ from openmdao.core.driver import Driver
 from openmdao.utils.assert_utils import assert_near_equal
 from openmdao.utils.testing_utils import require_pyoptsparse, use_tempdirs
 
-from aviary.models.N3CC.N3CC_data import inputs as _inputs
-from aviary.models.N3CC.N3CC_data import (
+from aviary.validation_cases.validation_data.test_data.advanced_single_aisle_data import (
+    inputs as _inputs,
+)
+from aviary.validation_cases.validation_data.test_data.advanced_single_aisle_data import (
     landing_fullstop_user_options as _landing_fullstop_user_options,
 )
-from aviary.models.N3CC.N3CC_data import landing_trajectory_builder as _landing_trajectory_builder
+from aviary.validation_cases.validation_data.test_data.advanced_single_aisle_data import (
+    landing_trajectory_builder as _landing_trajectory_builder,
+)
 from aviary.subsystems.premission import CorePreMission
 from aviary.subsystems.propulsion.utils import build_engine_deck
 from aviary.utils.functions import set_aviary_initial_values, set_aviary_input_defaults
@@ -26,19 +30,19 @@ from aviary.variable_info.variables import Aircraft, Dynamic
 class TestFLOPSDetailedLanding(unittest.TestCase):
     """Test detailed landing using N3CC data."""
 
-    # @require_pyoptsparse(optimizer='IPOPT')
-    # def bench_test_IPOPT(self):
-    #     driver = om.pyOptSparseDriver()
+    @require_pyoptsparse(optimizer='IPOPT')
+    def bench_test_IPOPT(self):
+        driver = om.pyOptSparseDriver()
 
-    #     optimizer = 'IPOPT'
-    #     driver.options['optimizer'] = optimizer
+        optimizer = 'IPOPT'
+        driver.options['optimizer'] = optimizer
 
-    #     driver.opt_settings['max_iter'] = 100
-    #     driver.opt_settings['tol'] = 1.0E-6
-    #     driver.opt_settings['print_level'] = 4
-    #     driver.opt_settings['mu_init'] = 1e-5
+        driver.opt_settings['max_iter'] = 100
+        driver.opt_settings['tol'] = 1.0e-6
+        driver.opt_settings['print_level'] = 4
+        driver.opt_settings['mu_init'] = 1e-5
 
-    #     self._do_run(driver, optimizer)
+        self._do_run(driver, optimizer)
 
     @require_pyoptsparse(optimizer='SNOPT')
     def bench_test_SNOPT(self):
@@ -75,9 +79,13 @@ class TestFLOPSDetailedLanding(unittest.TestCase):
         # Upstream static analysis for aero
         landing.model.add_subsystem(
             'pre_mission',
-            CorePreMission(aviary_options=aviary_options, subsystems=default_premission_subsystems),
+            CorePreMission(
+                aviary_options=aviary_options,
+                subsystems=default_premission_subsystems,
+                subsystem_options={},
+            ),
             promotes_inputs=['aircraft:*'],
-            promotes_outputs=['aircraft:*', 'mission:*'],
+            promotes_outputs=['aircraft:*'],
         )
 
         # Instantiate the trajectory and add the phases
@@ -112,7 +120,9 @@ class TestFLOPSDetailedLanding(unittest.TestCase):
         landing_trajectory_builder.apply_initial_guesses(landing, 'traj')
 
         # run the problem
-        dm.run_problem(landing, run_driver=True, simulate=True, make_plots=False)
+        landing.result = dm.run_problem(landing, run_driver=True, simulate=True, make_plots=False)
+
+        # self.assertTrue(landing.result.success)
 
         # Field length
         # N3CC FLOPS output line 1773
@@ -144,7 +154,7 @@ class TestFLOPSDetailedLanding(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    use_SNOPT = True
+    use_SNOPT = False
 
     z = TestFLOPSDetailedLanding()
 

@@ -2,6 +2,7 @@ import importlib.util  # used for opening existing phase info file
 import json
 import os
 import platform
+import pprint
 import shutil
 import subprocess
 import tkinter as tk  # base tkinter
@@ -15,6 +16,12 @@ from matplotlib.figure import Figure
 
 # used for unit conversion of numerical data
 from openmdao.utils.units import convert_units
+
+try:
+    from numpy import trapz
+except ImportError:
+    # Trapz is deprecated in the latest numpy
+    from numpy import trapezoid as trapz
 
 
 def get_screen_geometry():
@@ -199,15 +206,15 @@ class AviaryMissionEditor(tk.Tk):
             'labels': ['Time', 'Altitude', 'Mach'],
             'units': ['min', 'ft', 'unitless'],
             'limits': [400, 50e3, 1.0],
-            'rounding': [0, 0, 2],
+            'rounding': [3, 3, 3],
         }
 
         self.advanced_options = {
             'constrain_range': tk.BooleanVar(value=True),
-            'solve_for_distance': tk.BooleanVar(),
+            'distance_solve_segments': tk.BooleanVar(),
             'include_takeoff': tk.BooleanVar(),
             'include_landing': tk.BooleanVar(),
-            'polynomial_control_order': tk.IntVar(value=1),
+            'polynomial_order': tk.IntVar(value=1),
         }
 
         self.check_data_info()  # sanity checking of data_info dict
@@ -812,7 +819,9 @@ class AviaryMissionEditor(tk.Tk):
         """Returns a rounded value based on which variable the value belongs to.
         Uses rounding amount specified in data_info.
         """
-        return format(value, '.' + str(int(self.data_info['rounding'][col].get()) + extra) + 'f')
+        precision = int(self.data_info['rounding'][col].get()) + extra
+        width = 8
+        return f'{value:{width}.{precision}g}'
 
     # ----------------------
     # Popup related functions
@@ -1390,43 +1399,49 @@ class AviaryMissionEditor(tk.Tk):
                     'Python File does not contain a global dictionary called phase_info!'
                 )
             if phase_info:
-                init = False
+                first_phase = True
                 idx = 0
                 ylabs = ['altitude', 'mach']
                 self.phase_order_list = []
                 units = [None] * 3
-                for phase_dict in phase_info.values():
-                    if 'initial_guesses' in phase_dict:  # not a pre/post mission dict
-                        self.advanced_options['solve_for_distance'].set(
-                            value=phase_dict['user_options']['solve_for_distance']
-                        )
-                        self.advanced_options['polynomial_control_order'].set(
-                            value=phase_dict['user_options']['polynomial_control_order']
-                        )
-                        self.phase_order_list.append(phase_dict['user_options']['order'])
+                for name, phase_dict in phase_info.items():
+                    if name in ['pre_mission', 'post_mission']:
+                        # Skip pre/post
+                        continue
 
-                        timevals, units[0] = phase_dict['initial_guesses']['time']
-                        if (
-                            not init
-                        ):  # for first run initialize internal lists with correct num of elements
-                            numpts = phase_dict['user_options']['num_segments'] + 1
-                            self.data = [[0] * numpts for _ in range(self.num_dep_vars + 1)]
-                            bool_list = [[0] * (numpts - 1) for _ in range(self.num_dep_vars)]
-                            self.data[0][0] = timevals[0]
-                            for i in range(self.num_dep_vars):
-                                self.data[i + 1][0], units[i + 1] = phase_dict['user_options'][
-                                    'initial_' + ylabs[i]
-                                ]
-                            init = True
+                    usr_opts = phase_dict['user_options']
 
-                        self.data[0][idx + 1] = timevals[1] + timevals[0]
+                    value = usr_opts.get('distance_solve_segments', None)
+                    if value is not None:
+                        self.advanced_options['distance_solve_segments'].set(value=value)
+
+                    mach_poly = usr_opts.get('mach_polynomial_order', None)
+                    alt_poly = usr_opts.get('altitude_polynomial_order', None)
+
+                    if mach_poly is not None:
+                        self.advanced_options['polynomial_order'].set(value=mach_poly)
+                    elif alt_poly is not None:
+                        self.advanced_options['polynomial_order'].set(value=alt_poly)
+
+                    self.phase_order_list.append(usr_opts['order'])
+
+                    timevals, units[0] = phase_dict['initial_guesses']['time']
+                    if first_phase:
+                        # For first phase, initialize internal lists with correct num of elements
+                        numpts = usr_opts['num_segments'] + 1
+                        self.data = [[0] * numpts for _ in range(self.num_dep_vars + 1)]
+                        bool_list = [[0] * (numpts - 1) for _ in range(self.num_dep_vars)]
+                        self.data[0][0] = timevals[0]
                         for i in range(self.num_dep_vars):
-                            self.data[i + 1][idx + 1] = phase_dict['user_options'][
-                                'final_' + ylabs[i]
-                            ][0]
-                            bool_list[i][idx] = phase_dict['user_options']['optimize_' + ylabs[i]]
+                            self.data[i + 1][0], units[i + 1] = usr_opts[f'{ylabs[i]}_initial']
+                        first_phase = False
 
-                        idx += 1
+                    self.data[0][idx + 1] = timevals[1] + timevals[0]
+                    for i in range(self.num_dep_vars):
+                        self.data[i + 1][idx + 1] = usr_opts[f'{ylabs[i]}_final'][0]
+                        bool_list[i][idx] = usr_opts[f'{ylabs[i]}_optimize']
+
+                    idx += 1
 
                 self.advanced_options['constrain_range'].set(
                     value=phase_info['post_mission']['constrain_range']
@@ -1492,12 +1507,12 @@ class AviaryMissionEditor(tk.Tk):
             if not continue_saving:
                 return
         users = {
-            'solve_for_distance': self.advanced_options['solve_for_distance'].get(),
+            'distance_solve_segments': self.advanced_options['distance_solve_segments'].get(),
             'constrain_range': self.advanced_options['constrain_range'].get(),
             'include_takeoff': self.advanced_options['include_takeoff'].get(),
             'include_landing': self.advanced_options['include_landing'].get(),
         }
-        polyord = self.advanced_options['polynomial_control_order'].get()
+        polyord = self.advanced_options['polynomial_order'].get()
         if len(self.table_boolvars[0]) != len(self.data[0]) - 1:
             for i in range(self.num_dep_vars):
                 self.table_boolvars[i] = [tk.BooleanVar()] * (len(self.data[0]) - 1)
@@ -1515,8 +1530,8 @@ class AviaryMissionEditor(tk.Tk):
             units=[item.get() for item in self.data_info['units']],
             polynomial_order=polyord,
             num_segments=len(self.data[0]) - 1,
-            optimize_altitude_phase_vars=self.table_boolvars[0],
-            optimize_mach_phase_vars=self.table_boolvars[1],
+            altitude_optimize_phase_vars=self.table_boolvars[0],
+            mach_optimize_phase_vars=self.table_boolvars[1],
             user_choices=users,
             orders=self.phase_order_list,
             filename=filename,
@@ -1538,8 +1553,8 @@ def create_phase_info(
     units,
     polynomial_order,
     num_segments,
-    optimize_mach_phase_vars,
-    optimize_altitude_phase_vars,
+    mach_optimize_phase_vars,
+    altitude_optimize_phase_vars,
     user_choices,
     orders,
     filename='outputted_phase_info.py',
@@ -1624,23 +1639,22 @@ def create_phase_info(
         phase_name = f'{phase_type}_{phase_count}'
 
         phase_info[phase_name] = {
-            'subsystem_options': {'core_aerodynamics': {'method': 'computed'}},
+            'subsystem_options': {'aerodynamics': {'method': 'computed'}},
             'user_options': {
-                'optimize_mach': optimize_mach_phase_vars[i].get(),
-                'optimize_altitude': optimize_altitude_phase_vars[i].get(),
-                'polynomial_control_order': polynomial_order,
-                'use_polynomial_control': True,
                 'num_segments': num_segments,
                 'order': orders[i],
-                'solve_for_distance': False,
-                'initial_mach': (mach_values[i], units[2]),
-                'final_mach': (mach_values[i + 1], units[2]),
+                'mach_optimize': mach_optimize_phase_vars[i].get(),
+                'mach_polynomial_order': polynomial_order,
+                'mach_initial': (mach_values[i], units[2]),
+                'mach_final': (mach_values[i + 1], units[2]),
                 'mach_bounds': (
                     (np.min(mach_values[i : i + 2]) - 0.02, np.max(mach_values[i : i + 2]) + 0.02),
                     units[2],
                 ),
-                'initial_altitude': (altitudes[i], units[1]),
-                'final_altitude': (altitudes[i + 1], units[1]),
+                'altitude_optimize': altitude_optimize_phase_vars[i].get(),
+                'altitude_polynomial_order': polynomial_order,
+                'altitude_initial': (altitudes[i], units[1]),
+                'altitude_final': (altitudes[i + 1], units[1]),
                 'altitude_bounds': (
                     (
                         max(np.min(altitudes[i : i + 2]) - alt_margin, 0.0),
@@ -1651,11 +1665,8 @@ def create_phase_info(
                 'throttle_enforcement': 'path_constraint'
                 if (i == (num_phases - 1) or i == 0)
                 else 'boundary_constraint',
-                'fix_initial': True if i == 0 else False,
-                'constrain_final': True if i == (num_phases - 1) else False,
-                'fix_duration': False,
-                'initial_bounds': (cumulative_initial_bounds[i], units[0]),
-                'duration_bounds': (duration_bounds[i], units[0]),
+                'time_initial_bounds': (cumulative_initial_bounds[i], units[0]),
+                'time_duration_bounds': (duration_bounds[i], units[0]),
             },
             'initial_guesses': {
                 'time': ([times[i], times[i + 1] - times[i]], units[0]),
@@ -1674,7 +1685,7 @@ def create_phase_info(
             continue
         phase_info[phase_name]['user_options'].update(
             {
-                'solve_for_distance': user_choices.get('solve_for_distance', False),
+                'distance_solve_segments': user_choices.get('distance_solve_segments', False),
             }
         )
 
@@ -1689,7 +1700,9 @@ def create_phase_info(
 
     # write a python file with the phase information
     with open(filename, 'w') as f:
-        f.write(f'phase_info = {phase_info}')
+        f.write('phase_info = ')
+        pp = pprint.PrettyPrinter(indent=4, stream=f, sort_dicts=False)
+        pp.pprint(phase_info)
 
     # Check for 'ruff' and format the file
     if shutil.which('ruff'):
@@ -1720,7 +1733,7 @@ def estimate_total_range_trapezoidal(times, mach_numbers, units):
     speeds = np.array(mach_numbers) * speed_of_sound
 
     # Use numpy's trapz function to integrate
-    total_range = np.trapz(speeds, times_sec)  # in meters
+    total_range = trapz(speeds, times_sec)  # in meters
     range_unit = units[1]
     # m and ft are small units for range, change to larger ones
     if range_unit == 'm':
