@@ -574,6 +574,7 @@ class TwoDOFProblemConfigurator(ProblemConfiguratorBase):
                 add_constraint=True,
             ),
         )
+        aviary_group.set_input_defaults('traj.groundroll.states:velocity', units='ft/s')
         aviary_group.connect(Mission.Takeoff.ROTATION_VELOCITY, 'groundroll_boundary.rhs:velocity')
         aviary_group.connect(
             f'traj.{phase1}.states:velocity',
