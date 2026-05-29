@@ -396,6 +396,7 @@ class EnergyStateProblemConfigurator(ProblemConfiguratorBase):
                 om.EQConstraintComp(),
                 promotes_inputs=[('rhs:mass', Mission.Takeoff.FINAL_MASS)],
             )
+            aviary_group.set_input_defaults('traj.climb.states:mass', units='lbm')
 
             # TODO: replace hard_coded ref for this constraint.
             eq.add_eq_output(

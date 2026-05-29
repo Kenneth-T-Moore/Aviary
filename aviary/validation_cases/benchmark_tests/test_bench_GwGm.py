@@ -68,7 +68,7 @@ class ProblemPhaseTestCase(unittest.TestCase):
             'validation_cases/validation_data/test_models/aircraft_for_bench_GwGm.csv',
             local_phase_info,
             optimizer='SNOPT',
-            verbosity=0,
+            verbosity=1,
         )
 
         self.assertTrue(prob.result.success)
