@@ -275,6 +275,10 @@ class SolvedTwoDOFProblemConfigurator(ProblemConfiguratorBase):
             om.EQConstraintComp(),
             promotes_inputs=[('rhs:mass', Mission.GROSS_MASS)],
         )
+        aviary_group.set_input_defaults(
+            f'traj.{first_flight_phase_name}.states:mass',
+            units='lbm',
+        )
 
         # TODO: replace hard_coded ref for this constraint.
         eq.add_eq_output('mass', eq_units='lbm', normalize=False, ref=100000.0, add_constraint=True)

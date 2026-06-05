@@ -56,13 +56,13 @@ class TestParameterizePhaseInfo(unittest.TestCase):
         prob.run_model()
 
         assert_near_equal(
-            prob.get_val('traj.desc2.timeseries.input_values:distance', units='km')[-1], 5000.0
+            prob.get_val('traj.desc2.states:distance', units='km')[-1], 5000.0
         )
         assert_near_equal(
-            prob.get_val('traj.climb2.timeseries.input_values:altitude', units='ft')[-1], 31000.0
+            prob.get_val('traj.climb2.states:altitude', units='ft')[-1], 31000.0
         )
         assert_near_equal(
-            prob.get_val('traj.groundroll.timeseries.input_values:mass', units='lbm')[0], 120000.0
+            prob.get_val('traj.groundroll.states:mass', units='lbm')[0], 120000.0
         )
         assert_near_equal(prob.get_val('traj.cruise.timeseries.mach')[0], 0.6)
 
