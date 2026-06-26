@@ -1,11 +1,11 @@
 import numpy as np
+import openmdao.api as om
 
 from aviary.mission.two_dof.ode.landing_eom import (
     GlideConditionComponent,
     LandingAltitudeComponent,
     LandingGroundRollComponent,
 )
-from aviary.mission.two_dof.ode.params import ParamPort
 from aviary.mission.two_dof.ode.two_dof_ode import TwoDOFODE
 from aviary.subsystems.aerodynamics.aerodynamics_builder import AerodynamicsBuilder
 from aviary.subsystems.atmosphere.atmosphere import Atmosphere
@@ -22,9 +22,6 @@ class LandingSegment(TwoDOFODE):
         subsystems = self.options['subsystems']
         user_options = self.options['user_options']
 
-        # TODO: paramport
-        self.add_subsystem('params', ParamPort(), promotes=['*'])
-
         self.add_subsystem(
             'approach_alt_comp',
             LandingAltitudeComponent(),
@@ -35,13 +32,38 @@ class LandingSegment(TwoDOFODE):
             promotes_outputs=[Mission.Landing.INITIAL_ALTITUDE],
         )
 
+        alias_comp = om.ExecComp(
+            'alt=airport_alt',
+            alt={
+                'val': np.zeros(1),
+                'units': 'ft',
+            },
+            airport_alt={'val': np.zeros(1), 'units': 'ft'},
+        )
+
+        alias_comp.add_expr(
+            'mach=landing_mach',
+            mach={'val': np.zeros(1), 'units': 'unitless'},
+            landing_mach={'val': np.zeros(1), 'units': 'unitless'},
+        )
+
+        self.add_subsystem(
+            'alias_landing_phase',
+            alias_comp,
+            promotes_inputs=[
+                ('airport_alt', Mission.Landing.AIRPORT_ALTITUDE),
+                ('landing_mach', Mission.Landing.INITIAL_MACH),
+            ],
+            promotes_outputs=[
+                ('alt', Dynamic.Mission.ALTITUDE),
+                ('mach', Dynamic.Atmosphere.MACH),
+            ],
+        )
+
         self.add_subsystem(
             name='atmosphere',
             subsys=Atmosphere(num_nodes=1, input_speed_type=SpeedType.MACH),
-            promotes_inputs=[
-                (Dynamic.Mission.ALTITUDE, Mission.Landing.INITIAL_ALTITUDE),
-                (Dynamic.Atmosphere.MACH, Mission.Landing.INITIAL_MACH),
-            ],
+            promotes_inputs=[Dynamic.Mission.ALTITUDE, Dynamic.Atmosphere.MACH],
             promotes_outputs=[
                 Dynamic.Atmosphere.DENSITY,
                 Dynamic.Atmosphere.SPEED_OF_SOUND,
@@ -72,10 +94,6 @@ class LandingSegment(TwoDOFODE):
                     aero_system,
                     promotes_inputs=[
                         '*',
-                        (
-                            Dynamic.Mission.ALTITUDE,
-                            Mission.Landing.INITIAL_ALTITUDE,
-                        ),
                         Dynamic.Atmosphere.DENSITY,
                         Dynamic.Atmosphere.SPEED_OF_SOUND,
                         Dynamic.Atmosphere.DYNAMIC_VISCOSITY,
@@ -108,11 +126,7 @@ class LandingSegment(TwoDOFODE):
                 propulsion_mission = self.add_subsystem(
                     subsystem.name,
                     propulsion_system,
-                    promotes_inputs=[
-                        '*',
-                        (Dynamic.Mission.ALTITUDE, Mission.Landing.AIRPORT_ALTITUDE),
-                        (Dynamic.Atmosphere.MACH, Mission.Landing.INITIAL_MACH),
-                    ],
+                    promotes_inputs=['*'],
                     promotes_outputs=[(Dynamic.Vehicle.Propulsion.THRUST_TOTAL, 'thrust_idle')],
                 )
                 propulsion_mission.set_input_defaults(Dynamic.Vehicle.Propulsion.THROTTLE, 0.0)
@@ -150,7 +164,7 @@ class LandingSegment(TwoDOFODE):
             name='atmosphere_td',
             subsys=Atmosphere(num_nodes=1),
             promotes_inputs=[
-                (Dynamic.Mission.ALTITUDE, Mission.Landing.AIRPORT_ALTITUDE),
+                Dynamic.Mission.ALTITUDE,
                 (Dynamic.Mission.VELOCITY, 'TAS_touchdown'),
             ],
             promotes_outputs=[
@@ -175,7 +189,6 @@ class LandingSegment(TwoDOFODE):
             ),
             promotes_inputs=[
                 '*',
-                (Dynamic.Mission.ALTITUDE, Mission.Landing.AIRPORT_ALTITUDE),
                 (Dynamic.Atmosphere.DENSITY, 'rho_td'),
                 (Dynamic.Atmosphere.SPEED_OF_SOUND, 'sos_td'),
                 (Dynamic.Atmosphere.DYNAMIC_VISCOSITY, 'viscosity_td'),
@@ -196,7 +209,10 @@ class LandingSegment(TwoDOFODE):
                 ('t_init_flaps', 't_init_flaps_td'),
                 ('t_init_gear', 't_init_gear_td'),
             ],
-            promotes_outputs=[('CD', 'touchdown_CD'), ('CL', 'touchdown_CL')],
+            promotes_outputs=[
+                (Dynamic.Vehicle.DRAG_COEFFICIENT, 'touchdown_CD'),
+                (Dynamic.Vehicle.LIFT_COEFFICIENT, 'touchdown_CL'),
+            ],
         )
         # GASP seems to run groundroll with flaps up and gear down (IWLD=2)
         self.set_input_defaults('t_init_flaps_td', 1e10)  # never deploy
@@ -226,9 +242,8 @@ class LandingSegment(TwoDOFODE):
             ],
         )
 
-        ParamPort.set_default_vals(self)
-
         self.set_input_defaults(Mission.Landing.INITIAL_MACH, val=0.1)
+        self.set_input_defaults(Mission.Landing.BRAKING_FRICTION_COEFFICIENT, val=0.4)
 
         # landing doesn't change flap or gear position
         self.set_input_defaults('t_init_flaps_app', val=1e10)

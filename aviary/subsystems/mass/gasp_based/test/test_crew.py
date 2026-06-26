@@ -2,17 +2,18 @@ import unittest
 
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials, assert_near_equal
+from openmdao.utils.testing_utils import use_tempdirs
 
-from aviary.subsystems.mass.gasp_based.crew import FlightCrewMass, NonFlightCrewMass
-
+from aviary.subsystems.mass.gasp_based.crew import CabinCrewMass, FlightCrewMass
 from aviary.variable_info.enums import GASPEngineType
 from aviary.variable_info.functions import setup_model_options
 from aviary.variable_info.options import get_option_defaults
 from aviary.variable_info.variables import Aircraft
 
 
+@use_tempdirs
 class CrewTestCase1(unittest.TestCase):
-    """this is the large single aisle 1 V3 test case"""
+    """this is the large single aisle 1 V3 test case."""
 
     def setUp(self):
         options = get_option_defaults()
@@ -26,7 +27,7 @@ class CrewTestCase1(unittest.TestCase):
         self.prob = om.Problem()
         self.prob.model.add_subsystem(
             'non_flight_crew',
-            NonFlightCrewMass(),
+            CabinCrewMass(),
             promotes=['*'],
         )
 
@@ -55,8 +56,9 @@ class CrewTestCase1(unittest.TestCase):
         assert_check_partials(partial_data, atol=8e-12, rtol=1e-12)
 
 
+@use_tempdirs
 class CrewTestCase2(unittest.TestCase):
-    """Gravity Modification Test"""
+    """Gravity Modification Test."""
 
     def setUp(self):
         options = get_option_defaults()
@@ -70,7 +72,7 @@ class CrewTestCase2(unittest.TestCase):
         self.prob = om.Problem()
         self.prob.model.add_subsystem(
             'non_flight_crew',
-            NonFlightCrewMass(),
+            CabinCrewMass(),
             promotes=['*'],
         )
 
@@ -108,8 +110,9 @@ class CrewTestCase2(unittest.TestCase):
         assert_check_partials(partial_data, atol=8e-12, rtol=1e-12)
 
 
+@use_tempdirs
 class CrewTestCase3(unittest.TestCase):
-    """BWB Parameters"""
+    """BWB Parameters."""
 
     def setUp(self):
         options = get_option_defaults()
@@ -123,7 +126,7 @@ class CrewTestCase3(unittest.TestCase):
         self.prob = om.Problem()
         self.prob.model.add_subsystem(
             'non_flight_crew',
-            NonFlightCrewMass(),
+            CabinCrewMass(),
             promotes=['*'],
         )
 

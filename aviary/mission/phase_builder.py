@@ -15,8 +15,8 @@ import numpy as np
 
 from aviary.mission.energy_state.ode.energy_state_ODE import EnergyStateODE
 from aviary.mission.initial_guess_builders import InitialGuess
-from aviary.utils.aviary_values import AviaryValues, get_keys
-from aviary.variable_info.variable_meta_data import _MetaData
+from aviary.utils.aviary_values import AviaryValues
+from aviary.variable_info.variable_meta_data import CoreMetaData
 
 _require_new_initial_guesses_meta_data_class_attr_ = namedtuple(
     '_require_new_initial_guesses_meta_data_class_attr_', ()
@@ -102,7 +102,7 @@ class PhaseBuilder(ABC):
     default_ode_class = EnergyStateODE
     default_options_class = om.OptionsDictionary
 
-    default_meta_data = _MetaData
+    default_meta_data = CoreMetaData
     # endregion : derived type customization points
 
     def __init__(
@@ -244,7 +244,7 @@ class PhaseBuilder(ABC):
 
         meta_data = self._initial_guesses_meta_data_
 
-        for key in get_keys(initial_guesses):
+        for key in initial_guesses.keys():
             if key not in meta_data:
                 raise TypeError(
                     f'{self.__class__.__name__}: {self.name}: unsupported initial guess: {key}'
@@ -604,6 +604,30 @@ class PhaseBuilder(ABC):
                         f'Invalid type "{con_type}" in builder for {subsystem.pathname}.'
                     )
         return phase
+
+    def get_parameters(self):
+        """
+        Declare any additional ODE variables that need to be promoted to the top of the
+        trajectory.
+
+        A parameter is a value that does not vary over the trajectory. Adding a variable name to
+        this list promotes the input to the top of the Aviary model, where it is either implicitly
+        connected to any pre-mission component that produces it, or it assumes the value set in
+        the csv file.
+
+        Returns
+        -------
+        dict
+            A dictionary where the keys are the names of the fixed parameters and the values are
+            dictionaries with the following keys:
+
+            - 'value': float or array
+                The fixed value for the variable.
+            - 'units': str
+                The units for the fixed value (optional).
+            - any additional keyword arguments required by OpenMDAO for the fixed variable.
+        """
+        return {}
 
 
 _registered_phase_builder_types = []

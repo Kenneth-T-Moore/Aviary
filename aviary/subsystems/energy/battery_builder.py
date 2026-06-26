@@ -33,8 +33,10 @@ class BatteryBuilder(SubsystemBuilder):
     def build_pre_mission(self, aviary_inputs=None, subsystem_options=None):
         return SizeBattery(aviary_inputs=aviary_inputs)
 
-    def get_mass_names(self, aviary_inputs=None):
-        return [Aircraft.Battery.MASS]
+    # Special Case: Aviary directly looks for battery mass as part of mass buildup, rather then
+    # letting it get summed with other external subsystem masses
+    # def get_mass_names(self, aviary_inputs=None):
+    # return [Aircraft.Battery.MASS]
 
     def build_mission(self, num_nodes, aviary_inputs, user_options, subsystem_options) -> om.Group:
         battery_group = om.Group()
@@ -116,6 +118,6 @@ class BatteryBuilder(SubsystemBuilder):
         }
         return params
 
-    def get_linked_variables(self, aviary_inputs=None):
+    def get_linked_variables(self, aviary_inputs=None, user_options=None, subsystem_options=None):
         # link cumulative electric energy between phases
         return [Dynamic.Vehicle.CUMULATIVE_ELECTRIC_ENERGY_USED]

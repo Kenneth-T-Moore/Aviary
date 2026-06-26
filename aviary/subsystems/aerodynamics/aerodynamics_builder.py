@@ -15,11 +15,16 @@ import openmdao.api as om
 
 # from dymos.utils.misc import _unspecified
 from aviary.subsystems.aerodynamics.flops_based.computed_aero_group import ComputedAeroGroup
-from aviary.subsystems.aerodynamics.flops_based.design import Design
+from aviary.subsystems.aerodynamics.flops_based.premission_aero import TakeoffLoverD
 from aviary.subsystems.aerodynamics.flops_based.tabular_aero_group import TabularAeroGroup
 from aviary.subsystems.aerodynamics.flops_based.takeoff_aero_group import TakeoffAeroGroup
 from aviary.subsystems.aerodynamics.gasp_based.gaspaero import CruiseAero, LowSpeedAero
-from aviary.subsystems.aerodynamics.gasp_based.premission_aero import PreMissionAero
+from aviary.subsystems.aerodynamics.gasp_based.premission_aero import (
+    PreMissionAero as PreMissionAeroGASP,
+)
+from aviary.subsystems.aerodynamics.flops_based.premission_aero import (
+    PreMissionAero as PreMissionAeroFLOPS,
+)
 from aviary.subsystems.aerodynamics.gasp_based.table_based import (
     TabularCruiseAero,
     TabularLowSpeedAero,
@@ -28,7 +33,7 @@ from aviary.subsystems.aerodynamics.solve_alpha_group import SolveAlphaGroup
 from aviary.subsystems.subsystem_builder import SubsystemBuilder
 from aviary.utils.named_values import NamedValues
 from aviary.variable_info.enums import AircraftTypes, LegacyCode, Verbosity
-from aviary.variable_info.variable_meta_data import _MetaData
+from aviary.variable_info.variable_meta_data import CoreMetaData
 from aviary.variable_info.variables import Aircraft, Dynamic, Mission, Settings
 
 
@@ -81,7 +86,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
     def build_pre_mission(self, aviary_inputs, subsystem_options):
         # pre-mission is not required when exclusively using tabular aero
         if self.tabular:
-            return None
+            return TakeoffLoverD()
 
         code_origin = self.code_origin
         try:
@@ -93,10 +98,10 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
             return None
 
         if code_origin is GASP:
-            return PreMissionAero()
+            return PreMissionAeroGASP()
 
         elif code_origin is FLOPS:
-            return Design()
+            return PreMissionAeroFLOPS()
 
     def build_mission(self, num_nodes, aviary_inputs, user_options, subsystem_options):
         aero_opts = subsystem_options.copy()
@@ -314,7 +319,12 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
         promotes = ['*']
 
         if self.code_origin is FLOPS:
-            promotes = [Dynamic.Vehicle.DRAG, Dynamic.Vehicle.LIFT]
+            promotes = [
+                Dynamic.Vehicle.DRAG,
+                Dynamic.Vehicle.LIFT,
+                Dynamic.Vehicle.DRAG_COEFFICIENT,
+                Dynamic.Vehicle.LIFT_COEFFICIENT,
+            ]
 
         elif self.code_origin is GASP:
             # GASP default is 'cruise'
@@ -325,27 +335,36 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
                 promotes = [
                     Dynamic.Vehicle.DRAG,
                     Dynamic.Vehicle.LIFT,
-                    'CL',
-                    'CD',
+                    Dynamic.Vehicle.DRAG_COEFFICIENT,
+                    Dynamic.Vehicle.LIFT_COEFFICIENT,
                     'flap_factor',
                     'gear_factor',
                 ]
 
             elif method in ('cruise', 'tabular_cruise'):
                 if method == 'tabular_cruise':
-                    promotes = [Dynamic.Vehicle.DRAG, Dynamic.Vehicle.LIFT]
+                    promotes = [
+                        Dynamic.Vehicle.DRAG,
+                        Dynamic.Vehicle.LIFT,
+                        Dynamic.Vehicle.DRAG_COEFFICIENT,
+                        Dynamic.Vehicle.LIFT_COEFFICIENT,
+                    ]
                 else:
                     if 'output_alpha' in subsystem_options:
                         if subsystem_options['output_alpha']:
                             promotes = [
                                 Dynamic.Vehicle.DRAG,
                                 Dynamic.Vehicle.LIFT,
+                                Dynamic.Vehicle.DRAG_COEFFICIENT,
+                                Dynamic.Vehicle.LIFT_COEFFICIENT,
                                 Dynamic.Vehicle.ANGLE_OF_ATTACK,
                             ]
                     else:
                         promotes = [
                             Dynamic.Vehicle.DRAG,
                             Dynamic.Vehicle.LIFT,
+                            Dynamic.Vehicle.DRAG_COEFFICIENT,
+                            Dynamic.Vehicle.LIFT_COEFFICIENT,
                             'CL_max',
                         ]
 
@@ -534,7 +553,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
                         )
 
                 for var in core_inputs_computed:
-                    meta = _MetaData[var]
+                    meta = CoreMetaData[var]
 
                     val = meta['default_value']
                     if val is None:
@@ -550,7 +569,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
                     params[var] = {'val': val, 'units': units, 'static_target': True}
 
                 for var in ENGINE_SIZED_INPUTS:
-                    meta = _MetaData[var]
+                    meta = CoreMetaData[var]
                     val = meta['default_value']
                     if val is None:
                         val = [0.0]  # _unspecified
@@ -564,7 +583,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
 
             elif method == 'tabular':
                 for var in TABULAR_CORE_INPUTS:
-                    meta = _MetaData[var]
+                    meta = CoreMetaData[var]
 
                     val = meta['default_value']
                     if val is None:
@@ -581,7 +600,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
 
             elif method == 'low_speed':
                 for var in LOW_SPEED_CORE_INPUTS:
-                    meta = _MetaData[var]
+                    meta = CoreMetaData[var]
 
                     val = meta['default_value']
                     if val is None:
@@ -633,7 +652,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
                             'static_target': True,
                         }
                     else:
-                        lift_opts = {'shape': shape, 'static_target': True}
+                        lift_opts = {'val': np.ones(shape), 'static_target': True}
 
                     if aviary_inputs is not None and Aircraft.Design.DRAG_POLAR in aviary_inputs:
                         drag_opts = {
@@ -641,7 +660,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
                             'static_target': True,
                         }
                     else:
-                        drag_opts = {'shape': shape, 'static_target': True}
+                        drag_opts = {'val': np.ones(shape), 'static_target': True}
 
                     params[Aircraft.Design.LIFT_POLAR] = lift_opts
                     params[Aircraft.Design.DRAG_POLAR] = drag_opts
@@ -675,7 +694,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
 
             for var in all_vars:
                 # TODO only checking core metadata here!!
-                meta = _MetaData[var]
+                meta = CoreMetaData[var]
 
                 val = meta['default_value']
                 if val is None:
@@ -691,6 +710,14 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
                 params[var] = {'val': val, 'units': units, 'static_target': True}
 
         return params
+
+    def get_timeseries(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        """Call get_timeseries() on all engine models and return combined result."""
+        timeseries_vars = [
+            Dynamic.Vehicle.DRAG_COEFFICIENT,
+            Dynamic.Vehicle.LIFT_COEFFICIENT,
+        ]
+        return timeseries_vars
 
     def get_pre_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
         if self.code_origin is GASP and not self.tabular:
@@ -769,6 +796,7 @@ COMPUTED_CORE_INPUTS = [
     # Mission.GROSS_MASS,
     Aircraft.Design.LIFT_COEFFICIENT,
     Aircraft.Design.MACH,
+    Aircraft.Design.PERCENT_EXCRESCENCE_DRAG,
 ]
 
 COMPUTED_CORE_INPUTS_BWB = [
@@ -800,6 +828,7 @@ COMPUTED_CORE_INPUTS_BWB = [
     # Mission.GROSS_MASS,
     Aircraft.Design.LIFT_COEFFICIENT,
     Aircraft.Design.MACH,
+    Aircraft.Design.PERCENT_EXCRESCENCE_DRAG,
 ]
 
 HORIZONTAL_TAIL_INPUTS = [
@@ -884,9 +913,16 @@ AERO_2DOF_INPUTS = [
     Aircraft.Wing.ZERO_LIFT_ANGLE,
 ]
 
-AERO_2DOF_TABULAR_LS_INPUTS = [Aircraft.Wing.SPAN, Aircraft.Wing.HEIGHT]
+AERO_2DOF_TABULAR_LS_INPUTS = [
+    Mission.Takeoff.AIRPORT_ALTITUDE,
+    Aircraft.Wing.FLAP_DEFLECTION_TAKEOFF,
+    Aircraft.Wing.SPAN,
+    Aircraft.Wing.HEIGHT,
+]
 
 AERO_LS_2DOF_INPUTS = [
+    Mission.Takeoff.AIRPORT_ALTITUDE,
+    Aircraft.Wing.FLAP_DEFLECTION_TAKEOFF,
     Mission.Takeoff.DRAG_COEFFICIENT_FLAP_INCREMENT,
     Mission.Takeoff.LIFT_COEFFICIENT_FLAP_INCREMENT,
     Mission.Takeoff.LIFT_COEFFICIENT_MAX,

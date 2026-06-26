@@ -9,7 +9,7 @@ from aviary.subsystems.aerodynamics.gasp_based.common import AeroForces, TimeRam
 from aviary.utils.csv_data_file import read_data_file
 from aviary.utils.data_interpolator_builder import build_data_interpolator
 from aviary.utils.functions import get_path
-from aviary.utils.named_values import NamedValues, get_items, get_keys
+from aviary.utils.named_values import NamedValues
 from aviary.variable_info.functions import add_aviary_input
 from aviary.variable_info.variables import Aircraft, Dynamic, Mission
 
@@ -23,8 +23,8 @@ aliases = {
     Dynamic.Vehicle.ANGLE_OF_ATTACK: ['alpha', 'angle_of_attack', 'AoA'],
     'flap_deflection': ['flap_deflection'],
     'hob': ['hob'],
-    'lift_coefficient': ['cl', 'lift_coefficient'],
-    'drag_coefficient': ['cd', 'drag_coefficient'],
+    Dynamic.Vehicle.LIFT_COEFFICIENT: ['cl', 'lift_coefficient'],
+    Dynamic.Vehicle.DRAG_COEFFICIENT: ['cd', 'drag_coefficient'],
     'delta_lift_coefficient': ['delta_cl', 'dcl'],
     'delta_drag_coefficient': ['delta_cd', 'dcd'],
 }
@@ -95,7 +95,10 @@ class TabularCruiseAero(om.Group):
                 Dynamic.Vehicle.ANGLE_OF_ATTACK,
             ]
             + extra_promotes,
-            promotes_outputs=[('lift_coefficient', 'CL'), ('drag_coefficient', 'CD_prescaled')],
+            promotes_outputs=[
+                ('lift_coefficient', Dynamic.Vehicle.LIFT_COEFFICIENT),
+                ('drag_coefficient', 'CD_prescaled'),
+            ],
         )
 
         #
@@ -330,7 +333,7 @@ class TabularLowSpeedAero(om.Group):
             'CL', vec_size=nn, units='unitless', input_names=['CL_free', 'dCL_ground', 'dCL_flaps']
         )
         adder.add_equation(
-            'CD',
+            Dynamic.Vehicle.DRAG_COEFFICIENT,
             vec_size=nn,
             units='unitless',
             input_names=['CD_free', 'dCD_ground', 'dCD_flaps', 'dCD_gear'],
@@ -341,7 +344,11 @@ class TabularLowSpeedAero(om.Group):
             units='unitless',
             input_names=['CL_max_free', 'dCL_max_flaps', 'dCL_max_ground'],
         )
-        self.add_subsystem('coef_sum', adder, promotes=['*'])
+        self.add_subsystem(
+            'coef_sum',
+            adder,
+            promotes=['*', ('CL', Dynamic.Vehicle.LIFT_COEFFICIENT)],
+        )
 
         # convert coefficients to forces
         self.add_subsystem(
@@ -464,12 +471,10 @@ def _build_free_aero_interp(
     required_outputs = {'lift_coefficient', 'drag_coefficient'}
 
     missing_variables = []
-    if not required_inputs <= get_keys(interp_data):
-        missing_variables.append([key for key in required_inputs.difference(get_keys(interp_data))])
-    if not connect_training_data and not required_outputs <= get_keys(interp_data):
-        missing_variables.append(
-            [key for key in required_outputs.difference(get_keys(interp_data))]
-        )
+    if not required_inputs <= interp_data.keys():
+        missing_variables.append([key for key in required_inputs.difference(interp_data.keys())])
+    if not connect_training_data and not required_outputs <= interp_data.keys():
+        missing_variables.append([key for key in required_outputs.difference(interp_data.keys())])
     if missing_variables:
         raise KeyError(
             f'GASP-based aerodynamics interpolation missing required variables: {missing_variables}'
@@ -547,12 +552,10 @@ def _build_flaps_aero_interp(
     required_outputs = {'delta_lift_coefficient', 'delta_drag_coefficient'}
 
     missing_variables = []
-    if not required_inputs <= get_keys(interp_data):
-        missing_variables.extend([key for key in required_inputs.difference(get_keys(interp_data))])
-    if not connect_training_data and not required_outputs <= get_keys(interp_data):
-        missing_variables.extend(
-            [key for key in required_outputs.difference(get_keys(interp_data))]
-        )
+    if not required_inputs <= interp_data.keys():
+        missing_variables.extend([key for key in required_inputs.difference(interp_data.keys())])
+    if not connect_training_data and not required_outputs <= interp_data.keys():
+        missing_variables.extend([key for key in required_outputs.difference(interp_data.keys())])
     if missing_variables:
         raise KeyError(
             f'GASP-based aerodynamics interpolation missing required variables: {missing_variables}'
@@ -614,12 +617,10 @@ def _build_ground_aero_interp(
     required_outputs = {'delta_lift_coefficient', 'delta_drag_coefficient'}
 
     missing_variables = []
-    if not required_inputs <= get_keys(interp_data):
-        missing_variables.append([key for key in required_inputs.difference(get_keys(interp_data))])
-    if not connect_training_data and not required_outputs <= get_keys(interp_data):
-        missing_variables.append(
-            [key for key in required_outputs.difference(get_keys(interp_data))]
-        )
+    if not required_inputs <= interp_data.keys():
+        missing_variables.append([key for key in required_inputs.difference(interp_data.keys())])
+    if not connect_training_data and not required_outputs <= interp_data.keys():
+        missing_variables.append([key for key in required_outputs.difference(interp_data.keys())])
     if missing_variables:
         raise KeyError(
             f'GASP-based aerodynamics interpolation missing required variables: {missing_variables}'
@@ -670,7 +671,7 @@ def _structure_special_grid(aero_data):
     data = []
     keys = []
     units = []
-    for idx, (key, (val, unit)) in enumerate(get_items(aero_data)):
+    for idx, (key, (val, unit)) in enumerate(aero_data.items()):
         if idx < 2:
             data.append(val)
             keys.append(key)

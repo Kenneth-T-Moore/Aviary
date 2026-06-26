@@ -7,8 +7,8 @@ aircraft:apu:mass,928.0,lbm
 aircraft:avionics:mass,1959.0,lbm
 aircraft:controls:cockpit_control_mass_scaler,1.0,unitless
 aircraft:controls:control_mass_increment,0.0,lbm
-aircraft:controls:stability_augmentation_system_mass,0.0,lbm
 aircraft:controls:stability_augmentation_system_mass_scaler,1.0,unitless
+aircraft:controls:stability_augmentation_system_reference_mass,0.0,lbm
 aircraft:crew_and_payload:cargo_mass,0.0,lbm
 aircraft:crew_and_payload:catering_items_mass_per_passenger,7.6,lbm
 aircraft:crew_and_payload:design:cargo_mass,0.0,lbm
@@ -27,9 +27,11 @@ aircraft:design:drag_coefficient_increment,0.00175,unitless
 aircraft:design:drag_divergence_shift,0.033,unitless
 aircraft:design:emergency_equipment_mass,50.0,lbm
 aircraft:design:gross_mass,175400.0,lbm
+aircraft:design:landing_to_takeoff_mass_ratio,0.9423,unitless
 aircraft:design:mach,0.8,unitless
 aircraft:design:max_structural_speed,402.5,mi/h
 aircraft:design:part25_structural_category,3.0,unitless
+aircraft:design:percent_excrescence_drag,0.075,unitless
 aircraft:design:range,3675.0,NM
 aircraft:design:static_margin,0.03,unitless
 aircraft:design:structural_mass_increment,0.0,lbm
@@ -45,6 +47,8 @@ aircraft:engine:pod_mass_scaler,1.0,unitless
 aircraft:engine:pylon_factor,1.25,unitless
 aircraft:engine:reference_sls_thrust,28690.0,lbf
 aircraft:engine:scaled_sls_thrust,28690.0,lbf
+aircraft:engine:subsonic_fuel_flow_scaler,1.0,unitless
+aircraft:engine:supersonic_fuel_flow_scaler,1.0,unitless
 aircraft:engine:type,7,unitless
 aircraft:engine:wing_locations,0.35,unitless
 aircraft:fuel:density,6.687,lbm/galUS
@@ -80,7 +84,7 @@ aircraft:hydraulics:gear_mass_coefficient,0.14,unitless
 aircraft:instruments:mass_coefficient,0.0736,unitless
 aircraft:landing_gear:fixed_gear,False,unitless
 aircraft:landing_gear:main_gear_location,0.15,unitless
-aircraft:landing_gear:main_gear_mass_coefficient,0.85,unitless
+aircraft:landing_gear:main_gear_mass_fraction,0.85,unitless
 aircraft:landing_gear:mass_coefficient,0.04,unitless
 aircraft:landing_gear:tail_hook_mass_scaler,1.0,unitless
 aircraft:landing_gear:total_mass_scaler,1.0,unitless
@@ -143,16 +147,17 @@ aircraft:wing:thickness_to_chord_root,0.15,unitless
 aircraft:wing:thickness_to_chord_tip,0.12,unitless
 aircraft:wing:vertical_mount_location,0.0,unitless
 aircraft:wing:zero_lift_angle,-1.2,deg
-mission:fuel_flow_scaler,1.0,unitless
 mission:landing:airport_altitude,0,ft
 mission:landing:braking_delay,1.0,s
+mission:landing:braking_friction_coefficient,0.4,unitless
 mission:landing:glide_to_stall_ratio,1.3,unitless
 mission:landing:maximum_flare_load_factor,1.15,unitless
 mission:landing:maximum_sink_rate,900.0,ft/min
 mission:landing:obstacle_height,50.0,ft
 mission:landing:touchdown_sink_rate,5.0,ft/s
-mission:reserve_fuel_additional,4998,lbm
+mission:reserve_fuel_mass_additional,4998,lbm
 mission:takeoff:decision_speed_increment,10.0,kn
+mission:takeoff:rolling_friction_coefficient,0.02,unitless
 mission:takeoff:rotation_speed_increment,5.0,kn
 mission:taxi:duration,0.1677,h
 settings:aerodynamics_method,GASP
@@ -216,7 +221,6 @@ INGASP.TBO,3500
 INGASP.TR,1
 INGASP.VCLMB,270
 INGASP.WENG,6130
-INGASP.WLPCT,0.9423
 INGASP.WNAC,0
 INGASP.WPLX,0
 INGASP.WPYLON,0

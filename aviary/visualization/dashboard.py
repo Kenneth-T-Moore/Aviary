@@ -1025,7 +1025,7 @@ def dashboard(script_name, port=0, run_in_background=False):
     if not os.path.isfile(problem_recorder_path):
         issue_warning(f'Problem case recorder file {problem_recorder_path} does not exist.')
 
-    # TODO - use lists and functions to do this with a lot less code
+    # See issue #1174. Use lists and functions to do this with a lot less code
     ####### Model Tab #######
     model_tabs_list = []
 
@@ -1314,7 +1314,7 @@ def dashboard(script_name, port=0, run_in_background=False):
         'Payload/Range Diagram',
         results_tabs_list,
         """
-        Defines key operating points on the aircraft's payload-range envelope from Design and Fallout missions.
+        Defines key operating points on the aircraft's payload-range envelope from Design and Off-Design Max Range missions.
         """,
         reports_dir / 'payload_range_data.csv',
     )

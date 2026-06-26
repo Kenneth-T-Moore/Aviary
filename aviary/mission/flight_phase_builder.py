@@ -10,7 +10,7 @@ from aviary.mission.phase_builder import PhaseBuilder, register
 from aviary.utils.aviary_options_dict import AviaryOptionsDictionary
 from aviary.utils.aviary_values import AviaryValues
 from aviary.variable_info.enums import EquationsOfMotion, ThrottleAllocation, Transcription
-from aviary.variable_info.variable_meta_data import _MetaData
+from aviary.variable_info.variable_meta_data import CoreMetaData
 from aviary.variable_info.variables import Aircraft, Dynamic
 
 # energy-state and Solved2DOF use this builder
@@ -176,7 +176,7 @@ class FlightPhaseBase(PhaseBuilder):
     default_ode_class = EnergyStateODE
     default_options_class = FlightPhaseOptions
 
-    default_meta_data = _MetaData
+    default_meta_data = CoreMetaData
 
     def build_phase(
         self,
@@ -217,7 +217,7 @@ class FlightPhaseBase(PhaseBuilder):
         # Add States #
         ##############
         if phase_type is EquationsOfMotion.ENERGY_STATE:
-            rate_source = Dynamic.Vehicle.Propulsion.FUEL_FLOW_RATE_NEGATIVE_TOTAL
+            rate_source = Dynamic.Vehicle.Propulsion.FUEL_MASS_FLOW_RATE_NEGATIVE_TOTAL
         else:
             rate_source = 'dmass_dr'
 
@@ -300,53 +300,27 @@ class FlightPhaseBase(PhaseBuilder):
         ##################
         # Add Timeseries #
         ##################
+        phase.add_timeseries_output(Dynamic.Mission.ALTITUDE_RATE, units='ft/s')
+        phase.add_timeseries_output(Dynamic.Vehicle.DRAG, units='lbf')
         phase.add_timeseries_output(
-            Dynamic.Vehicle.Propulsion.THRUST_TOTAL,
-            output_name=Dynamic.Vehicle.Propulsion.THRUST_TOTAL,
-            units='lbf',
+            Dynamic.Vehicle.Propulsion.ELECTRIC_POWER_IN_TOTAL,
+            units='kW',
         )
-
         phase.add_timeseries_output(
-            Dynamic.Vehicle.DRAG, output_name=Dynamic.Vehicle.DRAG, units='lbf'
-        )
-
-        if phase_type is EquationsOfMotion.ENERGY_STATE:
-            phase.add_timeseries_output(
-                Dynamic.Mission.SPECIFIC_ENERGY_RATE_EXCESS,
-                output_name=Dynamic.Mission.SPECIFIC_ENERGY_RATE_EXCESS,
-                units='m/s',
-            )
-
-        phase.add_timeseries_output(
-            Dynamic.Vehicle.Propulsion.FUEL_FLOW_RATE_NEGATIVE_TOTAL,
-            output_name=Dynamic.Vehicle.Propulsion.FUEL_FLOW_RATE_NEGATIVE_TOTAL,
+            Dynamic.Vehicle.Propulsion.FUEL_MASS_FLOW_RATE_NEGATIVE_TOTAL,
             units='lbm/h',
         )
 
-        phase.add_timeseries_output(
-            Dynamic.Vehicle.Propulsion.ELECTRIC_POWER_IN_TOTAL,
-            output_name=Dynamic.Vehicle.Propulsion.ELECTRIC_POWER_IN_TOTAL,
-            units='kW',
-        )
-
-        phase.add_timeseries_output(
-            Dynamic.Mission.ALTITUDE_RATE,
-            output_name=Dynamic.Mission.ALTITUDE_RATE,
-            units='ft/s',
-        )
+        phase.add_timeseries_output(Dynamic.Vehicle.LIFT, units='lbf')
 
         if throttle_enforcement != 'control':
-            phase.add_timeseries_output(
-                Dynamic.Vehicle.Propulsion.THROTTLE,
-                output_name=Dynamic.Vehicle.Propulsion.THROTTLE,
-                units='unitless',
-            )
+            phase.add_timeseries_output(Dynamic.Vehicle.Propulsion.THROTTLE, units='unitless')
 
-        phase.add_timeseries_output(
-            Dynamic.Mission.VELOCITY,
-            output_name=Dynamic.Mission.VELOCITY,
-            units='m/s',
-        )
+        if phase_type is EquationsOfMotion.ENERGY_STATE:
+            phase.add_timeseries_output(Dynamic.Mission.SPECIFIC_ENERGY_RATE_EXCESS, units='m/s')
+
+        phase.add_timeseries_output(Dynamic.Vehicle.Propulsion.THRUST_TOTAL, units='lbf')
+        phase.add_timeseries_output(Dynamic.Mission.VELOCITY, units='m/s')
 
         if phase_type is EquationsOfMotion.SOLVED_2DOF:
             phase.add_timeseries_output(Dynamic.Mission.FLIGHT_PATH_ANGLE)

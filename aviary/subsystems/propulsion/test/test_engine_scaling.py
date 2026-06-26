@@ -28,12 +28,12 @@ class EngineScalingTest(unittest.TestCase):
         options = AviaryValues()
         options.set_val(Settings.VERBOSITY, 0)
         options.set_val(Aircraft.Engine.DATA_FILE, filename)
-        options.set_val(Aircraft.Engine.SUBSONIC_FUEL_FLOW_SCALER, 0.9)
+        options.set_val(Aircraft.Engine.SUBSONIC_FUEL_FLOW_SCALER, 9)
         # make supersonic scaling factor extremely high so it is obvious if it gets used
-        options.set_val(Aircraft.Engine.SUPERSONIC_FUEL_FLOW_SCALER, 100)
+        options.set_val(Aircraft.Engine.SUPERSONIC_FUEL_FLOW_SCALER, 1000)
         options.set_val(Aircraft.Engine.FUEL_FLOW_SCALER_CONSTANT_TERM, 1.15)
         options.set_val(Aircraft.Engine.FUEL_FLOW_SCALER_LINEAR_TERM, 1.05)
-        options.set_val(Aircraft.Engine.CONSTANT_FUEL_CONSUMPTION, 10.0, units='lbm/h')
+        options.set_val(Aircraft.Engine.CONSTANT_FUEL_MASS_CONSUMPTION, 10.0, units='lbm/h')
         options.set_val(Aircraft.Engine.SCALE_FACTOR, 0.9)
         options.set_val(Aircraft.Engine.GENERATE_FLIGHT_IDLE, True)
         options.set_val(Aircraft.Engine.IGNORE_NEGATIVE_THRUST, False)
@@ -48,7 +48,6 @@ class EngineScalingTest(unittest.TestCase):
 
         preprocess_propulsion(options, [engine1])
 
-        options.set_val(Mission.FUEL_FLOW_SCALER, 10.0)
         engine_variables = {
             EngineModelVariables.THRUST: 'lbf',
             EngineModelVariables.FUEL_FLOW: 'lbm/h',
@@ -76,7 +75,7 @@ class EngineScalingTest(unittest.TestCase):
         self.prob.run_model()
 
         thrust = self.prob.get_val(Dynamic.Vehicle.Propulsion.THRUST)
-        fuel_flow = self.prob.get_val(Dynamic.Vehicle.Propulsion.FUEL_FLOW_RATE_NEGATIVE)
+        fuel_flow = self.prob.get_val(Dynamic.Vehicle.Propulsion.FUEL_MASS_FLOW_RATE_NEGATIVE)
         nox_rate = self.prob.get_val(Dynamic.Vehicle.Propulsion.NOX_RATE)
         # exit_area = self.prob.get_val(Dynamic.Mission.EXIT_AREA)
 

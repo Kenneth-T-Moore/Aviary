@@ -31,7 +31,7 @@ from aviary.utils.legacy_code_data.gasp_defaults import gasp_default_values, gas
 from aviary.utils.named_values import NamedValues
 from aviary.utils.utils import wrapped_convert_units
 from aviary.variable_info.enums import LegacyCode, Verbosity
-from aviary.variable_info.variable_meta_data import _MetaData
+from aviary.variable_info.variable_meta_data import CoreMetaData
 from aviary.variable_info.variables import Aircraft, Mission, Settings
 
 FLOPS = LegacyCode.FLOPS
@@ -361,7 +361,7 @@ def process_and_store_data(
                 vehicle_data['initialization_guesses'][name] = float(var_values[0])
                 continue
 
-            elif name in _MetaData:
+            elif name in CoreMetaData:
                 if current_namelist + '.' + var_name in default_values:
                     data_units = default_values.get_item(current_namelist + '.' + var_name)[1]
                 else:
@@ -393,16 +393,16 @@ def set_value(var_name, var_value, units=None, value_dict: NamedValues = None, v
     set_value will update the current value of a variable in a value dictionary that contains a value
     and it's associated units.
     If units are specified for the new value, they will be used, otherwise the current units in the
-    value dictionary or the default units from _MetaData are used.
+    value dictionary or the default units from CoreMetaData are used.
     If the new variable is part of a list, the current list will be extended if needed.
     """
     if var_name in value_dict:
         current_value, units = value_dict.get_item(var_name)
     else:
         current_value = None
-        if var_name in _MetaData:
+        if var_name in CoreMetaData:
             if not units:
-                units = _MetaData[var_name]['units']
+                units = CoreMetaData[var_name]['units']
     if not units:
         units = 'unitless'
 
@@ -436,10 +436,10 @@ def generate_aviary_names(legacy_code):
     Each Aviary variable will have a list of matching Fortran names.
     """
     alternate_names = {}
-    for key in _MetaData.keys():
-        historical_dict = _MetaData[key]['historical_name']
+    for key in CoreMetaData.keys():
+        historical_dict = CoreMetaData[key]['historical_name']
         if historical_dict and legacy_code in historical_dict:
-            alt_name = _MetaData[key]['historical_name'][legacy_code]
+            alt_name = CoreMetaData[key]['historical_name'][legacy_code]
             if isinstance(alt_name, str):
                 alt_name = [alt_name]
             alternate_names[key] = alt_name
@@ -510,20 +510,20 @@ def update_gasp_options(vehicle_data, verbosity=Verbosity.BRIEF):
         problem_type = 'sizing'
 
     if isinstance(design_range, list):
-        # if the design range target_range value is 0, set the problem_type to fallout
+        # if the design range target_range value is 0, set the problem_type to off_design_max_range
         if design_range[0] == 0:
-            problem_type = 'fallout'
+            problem_type = 'off_design_max_range'
             input_values.set_val(Settings.PROBLEM_TYPE, [problem_type])
             design_range = 0
         if problem_type == 'sizing':
             design_range = design_range[0]
         elif problem_type == 'alternate':
             design_range = design_range[2]
-        elif problem_type == 'fallout':
+        elif problem_type == 'off_design_max_range':
             design_range = 0
     else:
         if design_range == 0:
-            input_values.set_val(Settings.PROBLEM_TYPE, ['fallout'])
+            input_values.set_val(Settings.PROBLEM_TYPE, ['off_design_max_range'])
     input_values.set_val(Aircraft.Design.RANGE, [design_range], distance_units)
 
     ## Passengers ##
@@ -722,22 +722,24 @@ def update_gasp_options(vehicle_data, verbosity=Verbosity.BRIEF):
         input_values.set_val(Aircraft.Wing.NUM_FLAP_SEGMENTS, [num_flap_segments], 'unitless')
 
     ## FUEL RESERVES ##
-    reserve_fuel_additional = input_values.get_val(Mission.RESERVE_FUEL_ADDITIONAL, units='lbm')[0]
-    if reserve_fuel_additional <= 0:
+    reserve_fuel_mass_additional = input_values.get_val(
+        Mission.RESERVE_FUEL_MASS_ADDITIONAL, units='lbm'
+    )[0]
+    if reserve_fuel_mass_additional <= 0:
         # This is a percentage of mission fuel
         input_values.set_val(
-            Mission.RESERVE_FUEL_MARGIN, [-reserve_fuel_additional * 100], units='unitless'
+            Mission.RESERVE_FUEL_MARGIN, [-reserve_fuel_mass_additional * 100], units='unitless'
         )  # flip the value and multipy by 100 because it is a percentage
         input_values.set_val(
-            Mission.RESERVE_FUEL_ADDITIONAL, [0], units='lbm'
+            Mission.RESERVE_FUEL_MASS_ADDITIONAL, [0], units='lbm'
         )  # then clear out the unused value
-    if reserve_fuel_additional > 0 and reserve_fuel_additional < 10:
+    if reserve_fuel_mass_additional > 0 and reserve_fuel_mass_additional < 10:
         ValueError(
             '"FRESF" is not valid between 0 and 10. To set a reserve mission flight time you must setup a reserve mission definition with a target_duration.'
         )
-        input_values.set_val(Mission.RESERVE_FUEL_ADDITIONAL, [0], units='lbm')
-    if reserve_fuel_additional >= 10:
-        # we leave reserve_fuel_additional as it is
+        input_values.set_val(Mission.RESERVE_FUEL_MASS_ADDITIONAL, [0], units='lbm')
+    if reserve_fuel_mass_additional >= 10:
+        # we leave reserve_fuel_mass_additional as it is
         pass
 
     # Wing Fuel Tank Sizing ##
@@ -1024,10 +1026,10 @@ def update_flops_options(vehicle_data, verbosity=Verbosity.BRIEF):
         )
     # else: not required as jet fuel is assumed and default value in metadata is 6.7
 
-    if Aircraft.Fuel.WING_FUEL_CAPACITY in input_values:
-        if input_values.get_val(Aircraft.Fuel.WING_FUEL_CAPACITY, 'lbm')[0] < 50:
+    if Aircraft.Fuel.WING_FUEL_MASS_CAPACITY in input_values:
+        if input_values.get_val(Aircraft.Fuel.WING_FUEL_MASS_CAPACITY, 'lbm')[0] < 50:
             # Interpret value equivalently to FWMAX = wing_fuel_fraction * fuel_density * 2/3
-            FWMAX = input_values.get_val(Aircraft.Fuel.WING_FUEL_CAPACITY, 'lbm')[0]
+            FWMAX = input_values.get_val(Aircraft.Fuel.WING_FUEL_MASS_CAPACITY, 'lbm')[0]
             if FWMAX < 0.0:
                 FWMAX = 23.0
             if Aircraft.Fuel.DENSITY in input_values:
@@ -1035,8 +1037,8 @@ def update_flops_options(vehicle_data, verbosity=Verbosity.BRIEF):
             else:
                 FULDEN = wrapped_convert_units(
                     (
-                        _MetaData[Aircraft.Fuel.DENSITY]['default_value'],
-                        _MetaData[Aircraft.Fuel.DENSITY]['units'],
+                        CoreMetaData[Aircraft.Fuel.DENSITY]['default_value'],
+                        CoreMetaData[Aircraft.Fuel.DENSITY]['units'],
                     ),
                     'lbm/ft**3',
                 )
@@ -1044,7 +1046,7 @@ def update_flops_options(vehicle_data, verbosity=Verbosity.BRIEF):
             input_values.set_val(
                 Aircraft.Fuel.WING_FUEL_FRACTION, [FWMAX / (FULDEN * (2 / 3))], 'unitless'
             )
-            input_values.delete(Aircraft.Fuel.WING_FUEL_CAPACITY)
+            input_values.delete(Aircraft.Fuel.WING_FUEL_MASS_CAPACITY)
 
     # Set detailed wing flag if model supports it
     if Aircraft.Wing.INPUT_STATION_DISTRIBUTION in input_values:
@@ -1056,7 +1058,7 @@ def update_flops_options(vehicle_data, verbosity=Verbosity.BRIEF):
         try:
             CLAPP = unused_values.get_item('TOLIN.CLAPP')[0][0]
             CLLDM = 1.69 * CLAPP
-        except TypeError:
+        except KeyError:
             CLLDM = 3.0
         input_values.set_val(Mission.Landing.LIFT_COEFFICIENT_MAX, [CLLDM])
 
@@ -1150,8 +1152,8 @@ def update_flops_options(vehicle_data, verbosity=Verbosity.BRIEF):
             else:
                 FULDEN = wrapped_convert_units(
                     (
-                        _MetaData[Aircraft.Fuel.DENSITY]['default_value'],
-                        _MetaData[Aircraft.Fuel.DENSITY]['units'],
+                        CoreMetaData[Aircraft.Fuel.DENSITY]['default_value'],
+                        CoreMetaData[Aircraft.Fuel.DENSITY]['units'],
                     ),
                     'lbm/ft**3',
                 )
@@ -1264,6 +1266,27 @@ def update_flops_options(vehicle_data, verbosity=Verbosity.BRIEF):
         if Aircraft.HorizontalTail.ASPECT_RATIO in input_values:
             ARHT = input_values.get_val(Aircraft.HorizontalTail.ASPECT_RATIO)[0]
             input_values.set_val(Aircraft.VerticalTail.ASPECT_RATIO, [ARHT / 2.0], 'unitless')
+
+    # if mission-wide fuel flow factor provided, combine into sub and supersonic fuel flow factors
+    if 'MISSIN.fact' in vehicle_data['unused_values']:
+        FACT = vehicle_data['unused_values'].get_item('MISSIN.fact')[0][0]
+        if Aircraft.Engine.SUBSONIC_FUEL_FLOW_SCALER in input_values:
+            sub_fuel_flow_fact = input_values.get_val(Aircraft.Engine.SUBSONIC_FUEL_FLOW_SCALER)[0]
+            input_values.set_val(
+                Aircraft.Engine.SUBSONIC_FUEL_FLOW_SCALER, [sub_fuel_flow_fact * FACT]
+            )
+        else:
+            input_values.set_val(Aircraft.Engine.SUBSONIC_FUEL_FLOW_SCALER, [FACT])
+        if Aircraft.Engine.SUPERSONIC_FUEL_FLOW_SCALER in input_values:
+            sup_fuel_flow_fact = input_values.get_val(Aircraft.Engine.SUPERSONIC_FUEL_FLOW_SCALER)[
+                0
+            ]
+            input_values.set_val(
+                Aircraft.Engine.SUPERSONIC_FUEL_FLOW_SCALER, [sup_fuel_flow_fact * FACT]
+            )
+        else:
+            input_values.set_val(Aircraft.Engine.SUPERSONIC_FUEL_FLOW_SCALER, [FACT])
+        vehicle_data['unused_values'].delete('MISSIN.fact')
 
     # These variables should be removed if they are zero.
     rem_list = [
