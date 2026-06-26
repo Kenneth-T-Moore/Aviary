@@ -38,6 +38,22 @@ class MoreMission(av_Mission):
         TIMESERIES_VAR = 'mission:dummy:TIMESERIES_VAR'
 
 
+class FullVariableSet:
+    class Dummy:
+        DUMMY_CONSTRAINT_VARIABLE = 'dummy_constraint_variable'
+        DUMMY_CONTROL_VARIABLE = 'dummy_control_variable'
+        DUMMY_DESIGN_VARIABLE = 'dummy_design_variable'
+        DUMMY_STATE_VARIABLE = 'dummy_state_variable'
+        DUMMY_PARAMETER_VARIABLE = 'dummy_parameter_variable'
+        DUMMY_PRE_MISSION_INPUT = 'dummy_pre_mission_input'
+        DUMMY_PRE_MISSION_OUTPUT = 'dummy_pre_mission_output'
+        DUMMY_MISSION_INPUT = 'dummy_mission_input'
+        DUMMY_MISSION_OUTPUT = 'dummy_mission_output'
+        DUMMY_POST_MISSION_INPUT = 'dummy_post_mission_input'
+        DUMMY_POST_MISSION_OUTPUT = 'dummy_post_mission_output'
+        DUMMY_TIMESERIES_VARIABLE = 'dummy_timeseries_variable'
+
+
 ExtendedMetaData = deepcopy(av.CoreMetaData)
 AdditionalMetaData = deepcopy(av.CoreMetaData)
 
@@ -225,6 +241,63 @@ class DummyMissionComp(om.ExplicitComponent):
             2 * inputs[Mission.Dummy.VARIABLE] + inputs[Aircraft.Dummy.PARAMETER] * 0.5
         )
 
+        # This explicit component is returned in build_pre_mission, which simply calculates an output from an input
+
+
+class DummyFullPreMissionComp(om.ExplicitComponent):
+    def setup(self):
+        self.add_input(FullVariableSet.Dummy.DUMMY_DESIGN_VARIABLE, units='A')
+        self.add_input(FullVariableSet.Dummy.DUMMY_PRE_MISSION_INPUT, units='kn')
+        self.add_output(FullVariableSet.Dummy.DUMMY_PRE_MISSION_OUTPUT, units='kg')
+        self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='m**2')
+
+        self.declare_partials('*', '*', method='fd')
+
+    def compute(self, inputs, outputs):
+        outputs[FullVariableSet.Dummy.VARIABLE_OUT] = 2 * inputs[FullVariableSet.Dummy.VARIABLE]
+        outputs[FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT] = 1
+
+
+# This Explicit Component is returned in the build_mission function when defining the SubsystemBuilder. From Documentation
+# need to provide computations for state rates so the mission integration code can compute state values.
+class DummyFullMissionComp(om.ExplicitComponent):
+    def initialize(self):
+        self.options.declare('num_nodes', types=int)
+
+    def setup(self):
+        nn = self.options['num_nodes']
+        self.add_input(FullVariableSet.Dummy.DUMMY_MISSION_INPUT, units='m', shape=nn)
+        self.add_input(FullVariableSet.Dummy.DUMMY_STATE_VARIABLE, units='m/s', shape=nn)
+        self.add_input(FullVariableSet.Dummy.DUMMY_PARAMETER_VARIABLE, units='m', shape=nn)
+        self.add_output(FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE, units='unitless', shape=nn)
+        self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='m/s', shape=nn)
+        self.add_output(
+            FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate', units='m/s**2', shape=nn
+        )
+
+        self.declare_partials('*', '*', method='fd')
+
+    def compute(self, inputs, outputs):
+        outputs[FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT] = (
+            2 * inputs[FullVariableSet.Dummy.DUMMY_MISSION_INPUT]
+        )
+        outputs[FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate'] = 1
+        outputs[FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE] = 1
+
+
+# Almost identical ot the pre-mission component
+class DummyFullPostMissionComp(om.ExplicitComponent):
+    def setup(self):
+        self.add_input(FullVariableSet.Dummy.DUMMY_POST_MISSION_INPUT, units='kn')
+        self.add_output(FullVariableSet.Dummy.DUMMY_POST_MISSION_OUTPUT, units='kg')
+
+        self.declare_partials('*', '*', method='fd')
+
+    def compute(self, inputs, outputs):
+        outputs[FullVariableSet.Dummy.DUMMY_POST_MISSION_OUTPUT] = (
+            2 * inputs[FullVariableSet.Dummy.DUMMY_POST_MISSION_INPUT]
+        )
+
 
 class PreOnlyBuilder(SubsystemBuilder):
     def build_pre_mission(self, aviary_inputs, subsystem_options):
@@ -383,6 +456,173 @@ class AdditionalArrayGuessSubsystemBuilder(SubsystemBuilder):
         return [MoreMission.Dummy.DUMMY_CONTROL, MoreMission.Dummy.TIMESERIES_VAR]
 
 
+class FullSubsystemBuilder(SubsystemBuilder):
+    # Sets up self.name and self.meta_data.
+    def __init__(self, name='full_suite'):
+        super().__init__(name)
+
+    # Copied from separate existing subsystem builder. This function returns a dictionary of dynamic
+    # states. Required for subsystems with mission-based dynamics. User models must provide time derivative
+    # of each state.
+
+    # states are summed over the course of a phase by Dymos
+
+    # Return dictionary should have rate source & units specified.
+
+    # In this particular example we're saying DUMMY_STATE_VARIABLE is our dictionary key and
+    # the value is a dictionary with the rate_source and units (of state variable) attached
+    def get_states(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        return {
+            FullVariableSet.Dummy.DUMMY_STATE_VARIABLE: {
+                'rate_source': FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate',
+                'units': 'm/s',
+            }
+        }
+
+    # true if the mission subsystem needs to be in the solver loop in mission
+    def needs_mission_solver(self, aviary_inputs, subsystem_options):
+        return True
+
+    # builds an OpenMDAO system for pre-mission computations.
+    def build_pre_mission(self, aviary_inputs, subsystem_options=None):
+        return DummyFullPreMissionComp()
+
+    # return dictionary of control variables for subsystem
+
+    # From 'Mission Definition' documentation, which talks about information needed for creation of a
+    # Dymos trajectory (or dymos phases) - Controls are variables that are directly controlled by the optimizer
+
+    # return is like get_states. 1st term is the variable name, dictionary second term with units,
+    # opt flag (when true the control becomes an optimizer design variable), additional keywords for
+    # the control variable
+    def get_controls(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        controls_dict = {
+            FullVariableSet.Dummy.DUMMY_CONTROL_VARIABLE: {
+                'units': 'unitless',
+                'opt': True,
+                'lower': 0,
+                'upper': 1,
+            }
+        }
+        return controls_dict
+
+    # Parameters are variables that are allowed to be controlled by the optimizer and are assumed to be constant
+    # across the entire trajectory or a single phase
+    def get_parameters(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        return {FullVariableSet.Dummy.DUMMY_PARAMETER_VARIABLE: {'val': 2.0, 'units': 'm'}}
+
+    # place limits on a part of a phase? What is allowed to be constrained? Which variables?
+    def get_constraints(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        constraints = {
+            FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE: {
+                'lower': 1.0,
+                'type': 'boundary',
+                'loc': 'final',
+            },
+        }
+        return constraints
+
+    # Return a list of variable names that will be linked between phases... Which variables would that be for
+    # a dummy test case? I just threw in 2 random
+    def get_linked_variables(self, aviary_inputs=None):
+        return [FullVariableSet.Dummy.DUMMY_MISSION_INPUT]
+
+    # Might not need this
+    # def get_bus_variables(self, aviary_inputs=None):
+    #    return super().get_bus_variables(aviary_inputs)
+
+    # returns a dictionary of variables that are passed from pre-mission to mission to post-mission
+    # Are these linked? Here I've specified 'y' as pre-mission with the same name in mission?
+    def get_pre_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
+        bus_dict = {
+            'dummy_pre_mission_output': {
+                'mission_name': 'dummy_mission_input',
+                'units': 'm**2',
+            },
+        }
+        return bus_dict
+
+    # Build OpenMDAO System for mission computations of the subsystem
+    # Same scheme as build pre or post mission. For now just tossing in a random computation
+    def build_mission(self, num_nodes, aviary_inputs, user_options, subsystem_options):
+        return DummyFullMissionComp(num_nodes=num_nodes)
+
+    # List of inputs to be promoted out of the external subsystem
+    # Isn't promotion just linking variables with the same name? How does this differ from linked variables or
+    # get pre/post mission variables?
+    def mission_inputs(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        inputs = [FullVariableSet.Dummy.DUMMY_MISSION_INPUT]
+        return inputs
+
+    # same as above but with outputs... Should this list match get_post_mission_bus_variables
+    def mission_outputs(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        outputs = [FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT]
+        return outputs
+
+    # return design variables... which are variables modified by optimizer? that right?
+    def get_design_vars(self, aviary_inputs=None):
+        DVs = {
+            FullVariableSet.Dummy.DUMMY_DESIGN_VARIABLE: {
+                'units': 'A',
+                'lower': 0.0,
+                'upper': 2.0,
+            },
+        }
+        return DVs
+
+    # get initial guesses, pretty straight forward. Which variables are set with initial guesses?
+    def get_initial_guesses(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        return {
+            FullVariableSet.Dummy.DUMMY_STATE_VARIABLE: {
+                'val': [1.0, 2.0, 3.0],
+                'type': 'state',
+                'units': 'm/s',
+            }
+        }
+
+    # Return a list of names of mass variables
+    # what constitutes a mass variable?
+    def get_mass_names(self, aviary_inputs=None):
+        return [FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT]
+
+    # Preprocess inputs to the subsystem, returning a modified AviaryValues object
+    # modifies the inputs before they are set in the subsystem...
+    def preprocess_inputs(self, aviary_inputs=None):
+        aviary_inputs.set_val(FullVariableSet.Dummy.DUMMY_MISSION_INPUT, 1.0, 'kn')
+        return aviary_inputs
+
+    # Replaced with get_timeseries
+    # def get_outputs(self):
+    #    return super().get_outputs()
+
+    # Returns a list of outputs to add to the Dymos timeseries outputs for use when graphing or
+    # post-processing the mission.
+    def get_timeseries(self, aviary_inputs=None, user_options=None, subsystem_options=None):
+        return [FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE]
+
+    # Return a dict mapping phase names to a dict mapping mission variable names to post_mission variable names
+    def get_post_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
+        bus_dict = {
+            'dummy_phase_name': {
+                'dummy_post_mission_input': {'post_mission_name': 'dummy_mission_output'},
+            },
+        }
+        return bus_dict
+
+    #
+    def build_post_mission(
+        self,
+        aviary_inputs=None,
+        mission_info=None,
+        subsystem_options=None,
+        phase_mission_bus_lengths=None,
+    ):
+        return DummyFullPostMissionComp()
+
+    def report(self, prob, reports_folder, **kwargs):
+        {}
+
+
 class TestPreOnly(TestSubsystemBuilder):
     def setUp(self):
         self.subsystem_builder = PreOnlyBuilder()
@@ -412,5 +652,11 @@ class TestAdditionalArrayGuessBuilder(TestSubsystemBuilder):
         self.subsystem_builder = AdditionalArrayGuessSubsystemBuilder()
 
 
+class TestFullBuilder(TestSubsystemBuilder):
+    def setUp(self):
+        self.subsystem_builder = FullSubsystemBuilder()
+
+
 if __name__ == '__main__':
     unittest.main()
+    # TestFullBuilder.setUp()
