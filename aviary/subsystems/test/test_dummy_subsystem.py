@@ -524,7 +524,7 @@ class FullSubsystemBuilder(SubsystemBuilder):
 
     # Return a list of variable names that will be linked between phases... Which variables would that be for
     # a dummy test case? I just threw in 2 random
-    def get_linked_variables(self, aviary_inputs=None):
+    def get_linked_variables(self, aviary_inputs=None, user_options=None, subsystem_options=None):
         return [FullVariableSet.Dummy.DUMMY_MISSION_INPUT]
 
     # Might not need this
@@ -551,12 +551,18 @@ class FullSubsystemBuilder(SubsystemBuilder):
     # Isn't promotion just linking variables with the same name? How does this differ from linked variables or
     # get pre/post mission variables?
     def mission_inputs(self, aviary_inputs=None, user_options=None, subsystem_options=None):
-        inputs = [FullVariableSet.Dummy.DUMMY_MISSION_INPUT]
+        inputs = [
+            FullVariableSet.Dummy.DUMMY_MISSION_INPUT,
+            FullVariableSet.Dummy.DUMMY_PARAMETER_VARIABLE,
+        ]
         return inputs
 
     # same as above but with outputs... Should this list match get_post_mission_bus_variables
     def mission_outputs(self, aviary_inputs=None, user_options=None, subsystem_options=None):
-        outputs = [FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT]
+        outputs = [
+            FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT,
+            FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate',
+        ]
         return outputs
 
     # return design variables... which are variables modified by optimizer? that right?
