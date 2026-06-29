@@ -269,11 +269,13 @@ class DummyFullMissionComp(om.ExplicitComponent):
         self.add_input(FullVariableSet.Dummy.DUMMY_MISSION_INPUT, units='m', shape=nn)
         self.add_input(FullVariableSet.Dummy.DUMMY_STATE_VARIABLE, units='m/s', shape=nn)
         self.add_input(FullVariableSet.Dummy.DUMMY_PARAMETER_VARIABLE, units='m', shape=nn)
+        self.add_input(FullVariableSet.Dummy.DUMMY_CONTROL_VARIABLE, units='unitless', shape=nn)
         self.add_output(FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE, units='unitless', shape=nn)
         self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='m/s', shape=nn)
         self.add_output(
             FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate', units='m/s**2', shape=nn
         )
+        self.add_output(FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE, units='unitless', shape=nn)
 
         self.declare_partials('*', '*', method='fd')
 
@@ -282,7 +284,10 @@ class DummyFullMissionComp(om.ExplicitComponent):
             2 * inputs[FullVariableSet.Dummy.DUMMY_MISSION_INPUT]
         )
         outputs[FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate'] = 1
-        outputs[FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE] = 1
+        outputs[FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE] = inputs[
+            FullVariableSet.Dummy.DUMMY_CONTROL_VARIABLE
+        ]
+        outputs[FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE] = 1
 
 
 # Almost identical ot the pre-mission component
@@ -554,6 +559,7 @@ class FullSubsystemBuilder(SubsystemBuilder):
         inputs = [
             FullVariableSet.Dummy.DUMMY_MISSION_INPUT,
             FullVariableSet.Dummy.DUMMY_PARAMETER_VARIABLE,
+            FullVariableSet.Dummy.DUMMY_CONTROL_VARIABLE,
         ]
         return inputs
 
@@ -562,6 +568,8 @@ class FullSubsystemBuilder(SubsystemBuilder):
         outputs = [
             FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT,
             FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate',
+            FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE,
+            FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE,
         ]
         return outputs
 
