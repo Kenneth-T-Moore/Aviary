@@ -8,9 +8,9 @@ import aviary.api as av
 from aviary.models.missions.energy_state_default import phase_info
 
 from aviary.api import AviaryProblem
-from aviary.subsystems.test.test_dummy_subsystem import FullSubsystemBuilder
+from aviary.subsystems.test.test_dummy_subsystem import FullSubsystemBuilder, ExtendedMetaData
 
-prob = AviaryProblem(verbosity=0)
+prob = AviaryProblem(verbosity=0, meta_data=ExtendedMetaData)
 
 prob.load_inputs(
     'models/aircraft/advanced_single_aisle/advanced_single_aisle_FLOPS.csv', phase_info
@@ -23,3 +23,7 @@ prob.add_driver()
 prob.add_design_variables()
 prob.add_objective()
 prob.setup()
+prob.run_aviary_problem()
+# om.n2(prob, show_browser=False)
+
+prob.get_val('traj.phases.climb.rhs_all.solver_sub.full_suite.aircraft:dummy_mission_input')

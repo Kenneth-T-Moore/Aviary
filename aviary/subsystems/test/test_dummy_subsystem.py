@@ -40,18 +40,18 @@ class MoreMission(av_Mission):
 
 class FullVariableSet:
     class Dummy:
-        DUMMY_CONSTRAINT_VARIABLE = 'dummy_constraint_variable'
-        DUMMY_CONTROL_VARIABLE = 'dummy_control_variable'
-        DUMMY_DESIGN_VARIABLE = 'dummy_design_variable'
-        DUMMY_STATE_VARIABLE = 'dummy_state_variable'
-        DUMMY_PARAMETER_VARIABLE = 'dummy_parameter_variable'
-        DUMMY_PRE_MISSION_INPUT = 'dummy_pre_mission_input'
-        DUMMY_PRE_MISSION_OUTPUT = 'dummy_pre_mission_output'
-        DUMMY_MISSION_INPUT = 'dummy_mission_input'
-        DUMMY_MISSION_OUTPUT = 'dummy_mission_output'
-        DUMMY_POST_MISSION_INPUT = 'dummy_post_mission_input'
-        DUMMY_POST_MISSION_OUTPUT = 'dummy_post_mission_output'
-        DUMMY_TIMESERIES_VARIABLE = 'dummy_timeseries_variable'
+        DUMMY_CONSTRAINT_VARIABLE = 'aircraft:dummy_constraint_variable'
+        DUMMY_CONTROL_VARIABLE = 'aircraft:dummy_control_variable'
+        DUMMY_DESIGN_VARIABLE = 'aircraft:dummy_design_variable'
+        DUMMY_STATE_VARIABLE = 'aircraft:dummy_state_variable'
+        DUMMY_PARAMETER_VARIABLE = 'aircraft:dummy_parameter_variable'
+        DUMMY_PRE_MISSION_INPUT = 'aircraft:dummy_pre_mission_input'
+        DUMMY_PRE_MISSION_OUTPUT = 'aircraft:dummy_pre_mission_output'
+        DUMMY_MISSION_INPUT = 'aircraft:dummy_mission_input'
+        DUMMY_MISSION_OUTPUT = 'aircraft:dummy_mission_output'
+        DUMMY_POST_MISSION_INPUT = 'aircraft:dummy_post_mission_input'
+        DUMMY_POST_MISSION_OUTPUT = 'aircraft:dummy_post_mission_output'
+        DUMMY_TIMESERIES_VARIABLE = 'aircraft:dummy_timeseries_variable'
 
 
 ExtendedMetaData = deepcopy(av.CoreMetaData)
@@ -100,6 +100,15 @@ av.add_meta_data(
     default_value=0.5,
     option=False,
     units='m/s',
+    meta_data=ExtendedMetaData,
+)
+
+av.add_meta_data(
+    FullVariableSet.Dummy.DUMMY_DESIGN_VARIABLE,
+    desc='Dummy design variable',
+    default_value=0.5,
+    option=False,
+    units='A',
     meta_data=ExtendedMetaData,
 )
 
@@ -249,12 +258,16 @@ class DummyFullPreMissionComp(om.ExplicitComponent):
         self.add_input(FullVariableSet.Dummy.DUMMY_DESIGN_VARIABLE, units='A')
         self.add_input(FullVariableSet.Dummy.DUMMY_PRE_MISSION_INPUT, units='kn')
         self.add_output(FullVariableSet.Dummy.DUMMY_PRE_MISSION_OUTPUT, units='kg')
-        self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='m**2')
+        self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='kg')
 
         self.declare_partials('*', '*', method='fd')
 
     def compute(self, inputs, outputs):
-        outputs[FullVariableSet.Dummy.VARIABLE_OUT] = 2 * inputs[FullVariableSet.Dummy.VARIABLE]
+        outputs[FullVariableSet.Dummy.DUMMY_PRE_MISSION_OUTPUT] = (
+            2
+            * inputs[FullVariableSet.Dummy.DUMMY_PRE_MISSION_INPUT]
+            * inputs[FullVariableSet.Dummy.DUMMY_DESIGN_VARIABLE]
+        )
         outputs[FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT] = 1
 
 
@@ -266,12 +279,12 @@ class DummyFullMissionComp(om.ExplicitComponent):
 
     def setup(self):
         nn = self.options['num_nodes']
-        self.add_input(FullVariableSet.Dummy.DUMMY_MISSION_INPUT, units='m', shape=nn)
+        self.add_input(FullVariableSet.Dummy.DUMMY_MISSION_INPUT, units='m**2', shape=nn)
         self.add_input(FullVariableSet.Dummy.DUMMY_STATE_VARIABLE, units='m/s', shape=nn)
         self.add_input(FullVariableSet.Dummy.DUMMY_PARAMETER_VARIABLE, units='m', shape=nn)
         self.add_input(FullVariableSet.Dummy.DUMMY_CONTROL_VARIABLE, units='unitless', shape=nn)
         self.add_output(FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE, units='unitless', shape=nn)
-        self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='m/s', shape=nn)
+        self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='kg', shape=nn)
         self.add_output(
             FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate', units='m/s**2', shape=nn
         )
@@ -527,10 +540,11 @@ class FullSubsystemBuilder(SubsystemBuilder):
         }
         return constraints
 
-    # Return a list of variable names that will be linked between phases... Which variables would that be for
-    # a dummy test case? I just threw in 2 random
+    # Return a list of variable names that will be linked between phases...
     def get_linked_variables(self, aviary_inputs=None, user_options=None, subsystem_options=None):
-        return [FullVariableSet.Dummy.DUMMY_MISSION_INPUT]
+        # return []
+        return [FullVariableSet.Dummy.DUMMY_STATE_VARIABLE]
+        # return [FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE]
 
     # Might not need this
     # def get_bus_variables(self, aviary_inputs=None):
@@ -540,8 +554,8 @@ class FullSubsystemBuilder(SubsystemBuilder):
     # Are these linked? Here I've specified 'y' as pre-mission with the same name in mission?
     def get_pre_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
         bus_dict = {
-            'dummy_pre_mission_output': {
-                'mission_name': 'dummy_mission_input',
+            FullVariableSet.Dummy.DUMMY_PRE_MISSION_OUTPUT: {
+                'mission_name': FullVariableSet.Dummy.DUMMY_MISSION_INPUT,
                 'units': 'm**2',
             },
         }
@@ -588,7 +602,7 @@ class FullSubsystemBuilder(SubsystemBuilder):
     def get_initial_guesses(self, aviary_inputs=None, user_options=None, subsystem_options=None):
         return {
             FullVariableSet.Dummy.DUMMY_STATE_VARIABLE: {
-                'val': [1.0, 2.0, 3.0],
+                'val': 1.0,
                 'type': 'state',
                 'units': 'm/s',
             }
@@ -602,7 +616,7 @@ class FullSubsystemBuilder(SubsystemBuilder):
     # Preprocess inputs to the subsystem, returning a modified AviaryValues object
     # modifies the inputs before they are set in the subsystem...
     def preprocess_inputs(self, aviary_inputs=None):
-        aviary_inputs.set_val(FullVariableSet.Dummy.DUMMY_MISSION_INPUT, 1.0, 'kn')
+        aviary_inputs.set_val(FullVariableSet.Dummy.DUMMY_MISSION_INPUT, 1.0, 'm**2')
         return aviary_inputs
 
     # Replaced with get_timeseries
@@ -618,7 +632,9 @@ class FullSubsystemBuilder(SubsystemBuilder):
     def get_post_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
         bus_dict = {
             'dummy_phase_name': {
-                'dummy_post_mission_input': {'post_mission_name': 'dummy_mission_output'},
+                FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT: {
+                    'post_mission_name': FullVariableSet.Dummy.DUMMY_MISSION_INPUT
+                },
             },
         }
         return bus_dict
