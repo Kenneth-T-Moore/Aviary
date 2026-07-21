@@ -1544,6 +1544,7 @@ class AviaryGroup(om.Group):
                         eq_units='lbm',
                         normalize=True,
                         add_constraint=True,
+                        ref=1.0,
                     ),
                     promotes_inputs=[
                         ('lhs:GTOW', Aircraft.Design.GROSS_MASS),
