@@ -52,14 +52,14 @@ prob.build_model()
 
 
 prob.add_driver('SNOPT', use_coloring=True, max_iter=250)
-prob.add_driver('IPOPT', use_coloring=True, max_iter=250)
-prob.driver.opt_settings['print_level'] = 5
-prob.driver.opt_settings['mu_strategy'] = 'adaptive'
-prob.driver.opt_settings['tol'] = 1e-6
-prob.driver.opt_settings['acceptable_tol'] = 5e-6
-prob.driver.opt_settings['constr_viol_tol'] = 1e-6
-prob.driver.opt_settings['acceptable_constr_viol_tol'] = 5e-6
-prob.driver.options['debug_print'] = []
+# prob.add_driver('IPOPT', use_coloring=True, max_iter=250)
+# prob.driver.opt_settings['print_level'] = 5
+# prob.driver.opt_settings['mu_strategy'] = 'adaptive'
+# prob.driver.opt_settings['tol'] = 1e-6
+# prob.driver.opt_settings['acceptable_tol'] = 5e-6
+# prob.driver.opt_settings['constr_viol_tol'] = 1e-6
+# prob.driver.opt_settings['acceptable_constr_viol_tol'] = 5e-6
+# prob.driver.options['debug_print'] = []
 
 prob.add_design_variables()
 
