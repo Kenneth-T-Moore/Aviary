@@ -29,7 +29,7 @@ class RCBuilder(EngineModel):
 
 
         return RCPropMission(num_nodes=num_nodes, aviary_options=self.options, power_balance_mode=self.power_balance_mode)
-   
+
 
     def get_design_vars(self, aviary_inputs=None, user_options=None, subsystem_options=None, phase_info=None):
         """
@@ -51,23 +51,23 @@ class RCBuilder(EngineModel):
                 'units': 'kg',
                 'lower': 0.1,
                 'upper': 1.0,
-                # 'val': 100,  
+                # 'val': 100,
             },
             Aircraft.Engine.Motor.IDLE_CURRENT: {
                 'units': 'A',
                 'lower': 0.91,
                 'upper': 3.6, #TODO: this placeholder can be varied
-                # 'val': 2.2,  
+                # 'val': 2.2,
             },
-           
-                    
+
+
             Aircraft.Engine.Motor.MASS: {
-               
+
                 'units': 'lbm',
                 'lower': 1.0362,   # 0.47 kg -> KV low enough to keep rpm_max in the prop grid
                 'upper': 1.4330,   # 0.65 kg
             },
-           
+
 
         }
         return DVs
@@ -87,32 +87,32 @@ class RCBuilder(EngineModel):
         A dict of names for the propeller subsystem.
         """
 
-       
-       
+
+
 
         parameters = {
             Aircraft.Battery.VOLTAGE: {
-                'val': 22.2, 
+                'val': 22.2,
                 'units': 'V',
             },
             Aircraft.Battery.RESISTANCE: {
-                'val': 0.05, 
+                'val': 0.05,
                 'units': 'ohm',
             },
             Aircraft.Engine.Motor.RESISTANCE: {
-                'val': 0.05,  
+                'val': 0.05,
                 'units': 'ohm',
             },
             Aircraft.Engine.Motor.KV: {
-                'val': 400,  
+                'val': 400,
                 'units': 'rpm/V',
             },
             Aircraft.Engine.Motor.IDLE_CURRENT: {
-                'val': 2.2,  
+                'val': 2.2,
                 'units': 'A',
             },
 
-            
+
 
 
             Aircraft.Engine.Propeller.DIAMETER: {
@@ -129,7 +129,7 @@ class RCBuilder(EngineModel):
 
     def get_controls(self, aviary_inputs = None, user_options = None, subsystem_options = None, phase_name=None):
 
-        
+
         controls = {
 
 
@@ -147,27 +147,27 @@ class RCBuilder(EngineModel):
         # Solver mode computes current/current_max internally in RCPropMission.
         # Declaring them as Dymos controls creates duplicate connections.
         return controls
-        
+
     def needs_mission_solver(self, aviary_inputs, subsystem_options):
         return True
 
 
     def get_mass_names(self, aviary_inputs=None, user_options=None, subsystem_options=None, phase_info=None):
 
-        
+
         return [Aircraft.Battery.MASS, Aircraft.Engine.Motor.MASS]#, Aircraft.Engine.MASS]
-    
-
-   
 
 
 
 
-    
+
+
+
+
     #TODO add new outputs
     def mission_outputs(self, aviary_inputs=None, user_options=None, subsystem_options=None, phase_info=None):
         return [
-            #TODO: Alex see why this is an issue 
+            #TODO: Alex see why this is an issue
             # Dynamic.Vehicle.Propulsion.THROTTLE,
             # Dynamic.Vehicle.Propulsion.SHAFT_POWER + '_out',
             # Dynamic.Vehicle.Propulsion.RPM + '_out',

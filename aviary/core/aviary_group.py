@@ -1524,14 +1524,14 @@ class AviaryGroup(om.Group):
             if problem_type is ProblemType.SIZING:
                 self.add_design_var(
                     Aircraft.Design.GROSS_MASS,
-                    lower=10,
+                    lower=5,
                     upper=50,
                     units='lbm',
                     ref=1,
                 )
                 self.add_design_var(
                     Mission.GROSS_MASS,
-                    lower=10,
+                    lower=5,
                     upper=50,
                     units='lbm',
                     ref=1,

@@ -84,3 +84,6 @@ print(prob.get_val('traj.cruise.rhs_all.thrust_required', units='lbf'))
 print(prob.get_val('traj.cruise.rhs_all.thrust_residual', units='lbf'))
 print(prob.get_val('traj.cruise.rhs_all.drag', units='lbf'))
 print(prob.get_val('traj.cruise.rhs_all.thrust_net_total', units='lbf'))
+
+prob.model.list_vars(units=True, print_arrays=True)
+prob.list_driver_vars(print_arrays=True)
