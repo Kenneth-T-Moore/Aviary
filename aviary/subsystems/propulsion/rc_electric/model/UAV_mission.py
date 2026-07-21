@@ -20,7 +20,7 @@ class RCPropMission(om.Group):
         )
         self.options.declare(
             'power_balance_mode', default = 'feedforward', values = ['feedforward', 'solver'], desc = 'Choose between feedforward or solver power balance')
-        
+
         self.name = 'rcpropulsion_mission'
 
     def setup(self):
@@ -54,8 +54,8 @@ class RCPropMission(om.Group):
                 Dynamic.Vehicle.Propulsion.CURRENT,]
         )
 
-       
-        
+
+
         self.add_subsystem(
             'battery',
             Battery(num_nodes=nn),
@@ -67,8 +67,8 @@ class RCPropMission(om.Group):
         )
 
         self.add_subsystem(
-            'esc', 
-            ElectronicSpeedController(num_nodes=nn), 
+            'esc',
+            ElectronicSpeedController(num_nodes=nn),
             promotes_inputs=[
                 Dynamic.Vehicle.Propulsion.THROTTLE,
                 Dynamic.Vehicle.Propulsion.CURRENT
@@ -79,8 +79,8 @@ class RCPropMission(om.Group):
             'motor',
             Motor(num_nodes=nn, load_factor=motor_load_factor),
             promotes_inputs=[
-                Aircraft.Engine.Motor.IDLE_CURRENT, 
-                Aircraft.Engine.Motor.RESISTANCE, 
+                Aircraft.Engine.Motor.IDLE_CURRENT,
+                Aircraft.Engine.Motor.RESISTANCE,
                 Aircraft.Engine.Motor.KV,
                 Dynamic.Vehicle.Propulsion.CURRENT,
                 ],
@@ -89,13 +89,13 @@ class RCPropMission(om.Group):
                 ]
         )
 
-      
-        self.add_subsystem('vectorize_geo', Vectorization(num_nodes=nn), 
+
+        self.add_subsystem('vectorize_geo', Vectorization(num_nodes=nn),
             promotes_inputs=[Aircraft.Engine.Propeller.DIAMETER, Aircraft.Engine.Propeller.PITCH],
             promotes_outputs=['temp_diameter', 'temp_pitch']
             )
 
-        
+
 
         self.add_subsystem(
             'propco',
@@ -116,17 +116,17 @@ class RCPropMission(om.Group):
                 Aircraft.Engine.Propeller.DIAMETER,
                 'ct',
                 'cp',
-                
+
                 Dynamic.Atmosphere.DENSITY
                 ] + rpm_in,
             promotes_outputs=[
                 Dynamic.Vehicle.Propulsion.PROP_POWER,
                 Dynamic.Vehicle.Propulsion.THRUST,
-                
+
                 ]
         )
 
-        
+
         self.add_subsystem(
             'rpm_balance',
             om.ExecComp(
@@ -139,12 +139,12 @@ class RCPropMission(om.Group):
             promotes_inputs=['rpm_slack'],
         )
         self.connect(Dynamic.Vehicle.Propulsion.RPM, 'rpm_balance.rpm_motor')
-       
 
-       
-        
-       
-        
+
+
+
+
+
 
         self.add_subsystem(
             'electric_power',
@@ -165,22 +165,22 @@ class RCPropMission(om.Group):
         self.connect('esc.voltage_out', 'motor.voltage_in')
         self.connect('esc.current_out', 'motor.current')
 
-       
-        
-        
 
-       
 
-        
+
+
+
+
+
 
 
 
 
         """Constraints"""
               # Force commanded cruise RPM to match motor-computed RPM.
-        self.add_constraint('rpm_balance.rpm_defect', upper=0.004, lower=-0.004, ref = 1, units='rev/s')
-       
-        
+        self.add_constraint('rpm_balance.rpm_defect', upper=0.004, lower=-0.004, ref = 100.0, units='rev/s')
+
+
 
         self.options['auto_order'] = True
 
