@@ -277,7 +277,7 @@ av.add_meta_data(
     units='unitless',
     types=str,
     desc='Path to csv file containing airfoil data',
-    default_value='subsystems/mass/UAV_mass/utils/n0012-il.csv',
+    default_value='n0012-il.csv',
     meta_data = ExtendedMetaData,
     option=True,
 )
@@ -474,7 +474,7 @@ av.add_meta_data(
     units='unitless',
     types=str,
     desc='Path to csv file containing airfoil data',
-    default_value='subsystems/mass/UAV_mass/utils/n0012-il.csv',
+    default_value='n0012-il.csv',
     meta_data = ExtendedMetaData,
     option=True,
 )
@@ -671,7 +671,7 @@ av.add_meta_data(
     units='unitless',
     types=str,
     desc='Path to csv file containing airfoil data',
-    default_value='subsystems/mass/UAV_mass/utils/mh84-il.csv',
+    default_value='mh84-il.csv',
     meta_data = ExtendedMetaData,
     option=True,
 )

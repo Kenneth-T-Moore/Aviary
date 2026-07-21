@@ -5,7 +5,7 @@ from aviary.subsystems.aerodynamics.UAV_Aero.custom_aero_builder import CustomAe
 phase_info = {
     'pre_mission': {'include_takeoff': False,  'optimize_mass': False},
     'climb': {
-        'subsystem_options': {'aerodynamics': {'method': 'computed'}},
+        'subsystem_options': {'aerodynamics': {'method': 'external'}},
         'user_options': {
             'num_segments': 1,
             'order': 3,
@@ -52,7 +52,7 @@ phase_info = {
             'distance_ref': (1.0e2, 'ft'),
             # 'alt_ref': (100, 'ft'),
             # 'mach_final': (0.05, 'unitless'),
-            
+
             'altitude_polynomial_order': 1,
             'altitude_optimize': False,
             'altitude_initial': (200.0, 'ft'),
@@ -62,10 +62,10 @@ phase_info = {
             'target_distance': (1000.0, 'm'),
             'throttle_enforcement': 'control',
             # 'throttle_polynomial_order': 1,
-            
-            #Time 
+
+            #Time
             'time_initial': (0.0, 's'),
-            'time_duration_bounds': ((20,180.0), 's'),
+            'time_duration_bounds': ((0.0, 180.0), 's'),
         },
         'initial_guesses': {
             'distance': ([0, 1000], 'm'),
@@ -73,7 +73,7 @@ phase_info = {
         },
     },
     'descent': {
-        'subsystem_options': {'aerodynamics': {'method': 'computed'}},
+        'subsystem_options': {'aerodynamics': {'method': 'external'}},
         'user_options': {
             'num_segments': 5,
             'order': 3,
