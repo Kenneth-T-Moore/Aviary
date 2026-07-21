@@ -1524,14 +1524,14 @@ class AviaryGroup(om.Group):
             if problem_type is ProblemType.SIZING:
                 self.add_design_var(
                     Aircraft.Design.GROSS_MASS,
-                    lower=5,
+                    lower=2,
                     upper=50,
                     units='lbm',
                     ref=10,
                 )
                 self.add_design_var(
                     Mission.GROSS_MASS,
-                    lower=5,
+                    lower=2,
                     upper=50,
                     units='lbm',
                     ref=10,
@@ -1544,7 +1544,11 @@ class AviaryGroup(om.Group):
                         eq_units='lbm',
                         normalize=True,
                         add_constraint=True,
+<<<<<<< HEAD
                         ref=1.0,
+=======
+                        ref = 1
+>>>>>>> f5c6d08bd0ab061a4cf3189c8985385ce75dd796
                     ),
                     promotes_inputs=[
                         ('lhs:GTOW', Aircraft.Design.GROSS_MASS),
