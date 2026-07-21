@@ -1527,14 +1527,14 @@ class AviaryGroup(om.Group):
                     lower=5,
                     upper=50,
                     units='lbm',
-                    ref=1,
+                    ref=10,
                 )
                 self.add_design_var(
                     Mission.GROSS_MASS,
                     lower=5,
                     upper=50,
                     units='lbm',
-                    ref=1,
+                    ref=10,
                 )
 
                 self.add_subsystem(

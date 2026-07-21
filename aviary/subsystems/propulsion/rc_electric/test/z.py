@@ -51,7 +51,7 @@ prob.build_model()
 
 
 
-prob.add_driver('SNOPT', use_coloring=True, max_iter=25)
+prob.add_driver('SNOPT', use_coloring=True, max_iter=250)
 prob.add_driver('IPOPT', use_coloring=True, max_iter=250)
 prob.driver.opt_settings['print_level'] = 5
 prob.driver.opt_settings['mu_strategy'] = 'adaptive'
