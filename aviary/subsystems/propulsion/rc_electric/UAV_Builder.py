@@ -59,8 +59,6 @@ class RCBuilder(EngineModel):
                 'upper': 3.6, #TODO: this placeholder can be varied
                 # 'val': 2.2,
             },
-
-
             Aircraft.Engine.Motor.MASS: {
 
                 'units': 'lbm',
@@ -87,9 +85,6 @@ class RCBuilder(EngineModel):
         A dict of names for the propeller subsystem.
         """
 
-
-
-
         parameters = {
             Aircraft.Battery.VOLTAGE: {
                 'val': 22.2,
@@ -112,9 +107,6 @@ class RCBuilder(EngineModel):
                 'units': 'A',
             },
 
-
-
-
             Aircraft.Engine.Propeller.DIAMETER: {
                 'val': 19,
                 'units': 'inch',
@@ -122,6 +114,11 @@ class RCBuilder(EngineModel):
             Aircraft.Engine.Propeller.PITCH: {
                 'val': 12,
                 'units': 'inch',
+            },
+
+            Aircraft.Engine.Motor.MASS: {
+                'val': 1.0362,
+                'units': 'lbm',
             },
         }
 
