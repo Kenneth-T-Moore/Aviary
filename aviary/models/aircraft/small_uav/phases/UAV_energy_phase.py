@@ -25,16 +25,17 @@ phase_info = {
             'time_initial': (0.0, 'min'),
             'time_duration_bounds': ((0.1, 25), 's'),
             'constraints': {
-                'mach': {
-                    'upper': 0.145773,
-                    'units': 'unitless',
-                    'type': 'path',
-                }
+                #'mach': {
+                    #'upper': 0.145773,
+                    #'units': 'unitless',
+                    #'type': 'path',
+                #}
             },
         },
         'initial_guesses': {
             'time': ([0, 6], 's'),
-            'mach': ([0.05, 0.1], 'unitless')
+            'mach': ([0.05, 0.1], 'unitless'),
+            'throttle': ([0.6, 0.6], 'unitless'),
         },
     },
     'cruise': {
