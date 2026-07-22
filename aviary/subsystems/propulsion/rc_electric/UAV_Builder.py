@@ -47,24 +47,24 @@ class RCBuilder(EngineModel):
         # TODO Alex bounds are rough placeholders
         # TODO Alex potentially work on optimizing the voltage
         DVs = {
-            Aircraft.Battery.MASS: {
-                'units': 'kg',
-                'lower': 0.1,
-                'upper': 1.0,
-                # 'val': 100,
-            },
-            Aircraft.Engine.Motor.IDLE_CURRENT: {
-                'units': 'A',
-                'lower': 0.91,
-                'upper': 3.6, #TODO: this placeholder can be varied
-                # 'val': 2.2,
-            },
-            Aircraft.Engine.Motor.MASS: {
+            #Aircraft.Battery.MASS: {
+                #'units': 'kg',
+                #'lower': 0.1,
+                #'upper': 1.0,
+                ## 'val': 100,
+            #},
+            #Aircraft.Engine.Motor.IDLE_CURRENT: {
+                #'units': 'A',
+                #'lower': 0.91,
+                #'upper': 3.6, #TODO: this placeholder can be varied
+                ## 'val': 2.2,
+            #},
+            #Aircraft.Engine.Motor.MASS: {
 
-                'units': 'lbm',
-                'lower': 1.0362,   # 0.47 kg -> KV low enough to keep rpm_max in the prop grid
-                'upper': 1.4330,   # 0.65 kg
-            },
+                #'units': 'lbm',
+                #'lower': 1.0362,   # 0.47 kg -> KV low enough to keep rpm_max in the prop grid
+                #'upper': 1.4330,   # 0.65 kg
+            #},
 
 
         }
@@ -138,6 +138,7 @@ class RCBuilder(EngineModel):
             'lower': 20.0,
             'upper': 180.0,
             'ref': 180.0,
+            'rate_continuity': False,
         },
         }
 

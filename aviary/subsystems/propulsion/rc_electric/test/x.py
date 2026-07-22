@@ -20,7 +20,7 @@ model.set_input_defaults(Dynamic.Mission.VELOCITY, units='kn')
 prob.setup()
 
 prob.set_val(Dynamic.Mission.ALTITUDE, 200.0, units='ft')
-prob.set_val(Dynamic.Mission.VELOCITY, 30.0, units='kn')
+prob.set_val(Dynamic.Mission.VELOCITY, 0.0, units='kn')
 prob.set_val(f'battery.{Aircraft.Battery.MASS}', 2.0, units='lbm')
 prob.set_val(Aircraft.Engine.Motor.MASS, 1.0362, units='lbm')
 prob.set_val(Aircraft.Engine.Motor.IDLE_CURRENT, 2.2, units='A')

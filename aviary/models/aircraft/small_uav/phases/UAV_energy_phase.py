@@ -62,6 +62,8 @@ phase_info = {
             'distance_ref': (1000.0, 'm'),
             'target_distance': (1000.0, 'm'),
             'throttle_enforcement': 'control',
+            'throttle_optimize': True,
+            #'throttle_bounds': ((0.7, 1.0), 'unitless'),
             # 'throttle_polynomial_order': 1,
 
             #Time
@@ -71,6 +73,7 @@ phase_info = {
         'initial_guesses': {
             'distance': ([0, 1000], 'm'),
             'time': ([0, 54.7], 's'),
+            'throttle': ([0.6, 0.6], 'unitless'),
         },
     },
     'descent': {
