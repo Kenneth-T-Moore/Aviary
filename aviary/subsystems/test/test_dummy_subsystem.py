@@ -294,7 +294,7 @@ class DummyFullMissionComp(om.ExplicitComponent):
             FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate', units='m/s**2', shape=nn
         )
         self.add_output(FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE, units='unitless', shape=nn)
-        self.add_output(DUMMY_POST_MISSION_BUS, units='kg', shape=1)
+        self.add_output(DUMMY_POST_MISSION_BUS, units='kg', shape=nn)
 
         self.declare_partials('*', '*', method='fd')
 
@@ -307,14 +307,14 @@ class DummyFullMissionComp(om.ExplicitComponent):
             FullVariableSet.Dummy.DUMMY_CONTROL_VARIABLE
         ]
         outputs[FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE] = 1
-        outputs[DUMMY_POST_MISSION_BUS] = DUMMY_PRE_MISSION_BUS
+        outputs[DUMMY_POST_MISSION_BUS][:] = inputs[DUMMY_PRE_MISSION_BUS]
 
 
 # Almost identical ot the pre-mission component
 class DummyFullPostMissionComp(om.ExplicitComponent):
     def setup(self):
         self.add_input(FullVariableSet.Dummy.DUMMY_POST_MISSION_INPUT, units='kn')
-        self.add_input(DUMMY_POST_MISSION_BUS, units='kg')
+        self.add_input(DUMMY_POST_MISSION_BUS, units='kg', shape_by_conn=True)
         self.add_output(FullVariableSet.Dummy.DUMMY_POST_MISSION_OUTPUT, units='kg')
 
         self.declare_partials('*', '*', method='fd')
@@ -322,7 +322,7 @@ class DummyFullPostMissionComp(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         outputs[FullVariableSet.Dummy.DUMMY_POST_MISSION_OUTPUT] = (
             2 * inputs[FullVariableSet.Dummy.DUMMY_POST_MISSION_INPUT]
-            + inputs[DUMMY_POST_MISSION_BUS]
+            + inputs[DUMMY_POST_MISSION_BUS][-1]
         )
 
 
