@@ -54,6 +54,9 @@ class FullVariableSet:
         DUMMY_TIMESERIES_VARIABLE = 'aircraft:dummy_timeseries_variable'
 
 
+DUMMY_PRE_MISSION_BUS = 'dummy_pre_mission_bus'
+DUMMY_POST_MISSION_BUS = 'dummy_post_mission_bus'
+
 ExtendedMetaData = deepcopy(av.CoreMetaData)
 AdditionalMetaData = deepcopy(av.CoreMetaData)
 
@@ -259,7 +262,7 @@ class DummyFullPreMissionComp(om.ExplicitComponent):
         self.add_input(FullVariableSet.Dummy.DUMMY_PRE_MISSION_INPUT, units='kn')
         self.add_output(FullVariableSet.Dummy.DUMMY_PRE_MISSION_OUTPUT, units='kg')
         self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='kg')
-
+        self.add_output(DUMMY_PRE_MISSION_BUS, units='kg')
         self.declare_partials('*', '*', method='fd')
 
     def compute(self, inputs, outputs):
@@ -269,6 +272,7 @@ class DummyFullPreMissionComp(om.ExplicitComponent):
             * inputs[FullVariableSet.Dummy.DUMMY_DESIGN_VARIABLE]
         )
         outputs[FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT] = 1
+        outputs[DUMMY_PRE_MISSION_BUS] = 1
 
 
 # This Explicit Component is returned in the build_mission function when defining the SubsystemBuilder. From Documentation
@@ -283,12 +287,14 @@ class DummyFullMissionComp(om.ExplicitComponent):
         self.add_input(FullVariableSet.Dummy.DUMMY_STATE_VARIABLE, units='m/s', shape=nn)
         self.add_input(FullVariableSet.Dummy.DUMMY_PARAMETER_VARIABLE, units='m', shape=nn)
         self.add_input(FullVariableSet.Dummy.DUMMY_CONTROL_VARIABLE, units='unitless', shape=nn)
+        self.add_input(DUMMY_PRE_MISSION_BUS, units='kg', shape=1)
         self.add_output(FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE, units='unitless', shape=nn)
         self.add_output(FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT, units='kg', shape=nn)
         self.add_output(
             FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate', units='m/s**2', shape=nn
         )
         self.add_output(FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE, units='unitless', shape=nn)
+        self.add_output(DUMMY_POST_MISSION_BUS, units='kg', shape=1)
 
         self.declare_partials('*', '*', method='fd')
 
@@ -301,12 +307,14 @@ class DummyFullMissionComp(om.ExplicitComponent):
             FullVariableSet.Dummy.DUMMY_CONTROL_VARIABLE
         ]
         outputs[FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE] = 1
+        outputs[DUMMY_POST_MISSION_BUS] = DUMMY_PRE_MISSION_BUS
 
 
 # Almost identical ot the pre-mission component
 class DummyFullPostMissionComp(om.ExplicitComponent):
     def setup(self):
         self.add_input(FullVariableSet.Dummy.DUMMY_POST_MISSION_INPUT, units='kn')
+        self.add_input(DUMMY_POST_MISSION_BUS, units='kg')
         self.add_output(FullVariableSet.Dummy.DUMMY_POST_MISSION_OUTPUT, units='kg')
 
         self.declare_partials('*', '*', method='fd')
@@ -314,6 +322,7 @@ class DummyFullPostMissionComp(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         outputs[FullVariableSet.Dummy.DUMMY_POST_MISSION_OUTPUT] = (
             2 * inputs[FullVariableSet.Dummy.DUMMY_POST_MISSION_INPUT]
+            + inputs[DUMMY_POST_MISSION_BUS]
         )
 
 
@@ -544,7 +553,7 @@ class FullSubsystemBuilder(SubsystemBuilder):
     def get_linked_variables(self, aviary_inputs=None, user_options=None, subsystem_options=None):
         # return []
         return [FullVariableSet.Dummy.DUMMY_STATE_VARIABLE]
-        # return [FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE]
+        # return [FullVariableSet.Dummy.DUMMY_MISSION_INPUT]
 
     # Might not need this
     # def get_bus_variables(self, aviary_inputs=None):
@@ -554,9 +563,9 @@ class FullSubsystemBuilder(SubsystemBuilder):
     # Are these linked? Here I've specified 'y' as pre-mission with the same name in mission?
     def get_pre_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
         bus_dict = {
-            FullVariableSet.Dummy.DUMMY_PRE_MISSION_OUTPUT: {
-                'mission_name': FullVariableSet.Dummy.DUMMY_MISSION_INPUT,
-                'units': 'm**2',
+            'full_suite.' + DUMMY_PRE_MISSION_BUS: {
+                'mission_name': 'full_suite.' + DUMMY_PRE_MISSION_BUS,
+                'units': 'kg',
             },
         }
         return bus_dict
@@ -584,6 +593,7 @@ class FullSubsystemBuilder(SubsystemBuilder):
             FullVariableSet.Dummy.DUMMY_STATE_VARIABLE + '_rate',
             FullVariableSet.Dummy.DUMMY_TIMESERIES_VARIABLE,
             FullVariableSet.Dummy.DUMMY_CONSTRAINT_VARIABLE,
+            DUMMY_POST_MISSION_BUS,
         ]
         return outputs
 
@@ -609,7 +619,6 @@ class FullSubsystemBuilder(SubsystemBuilder):
         }
 
     # Return a list of names of mass variables
-    # what constitutes a mass variable?
     def get_mass_names(self, aviary_inputs=None):
         return [FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT]
 
@@ -631,11 +640,11 @@ class FullSubsystemBuilder(SubsystemBuilder):
     # Return a dict mapping phase names to a dict mapping mission variable names to post_mission variable names
     def get_post_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
         bus_dict = {
-            'dummy_phase_name': {
-                FullVariableSet.Dummy.DUMMY_MISSION_OUTPUT: {
-                    'post_mission_name': FullVariableSet.Dummy.DUMMY_MISSION_INPUT
+            'climb': {
+                DUMMY_POST_MISSION_BUS: {
+                    'post_mission_name': 'full_suite.' + DUMMY_POST_MISSION_BUS
                 },
-            },
+            }
         }
         return bus_dict
 

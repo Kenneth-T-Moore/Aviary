@@ -25,5 +25,5 @@ prob.add_objective()
 prob.setup()
 prob.run_aviary_problem()
 # om.n2(prob, show_browser=False)
-
+prob.model.list_vars(units=True, print_arrays=True)
 prob.get_val('traj.phases.climb.rhs_all.solver_sub.full_suite.aircraft:dummy_mission_input')
