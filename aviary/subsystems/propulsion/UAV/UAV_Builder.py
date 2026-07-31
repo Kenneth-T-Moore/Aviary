@@ -156,14 +156,14 @@ class UAVBuilder(EngineModel):
 
 
         #Rpm slack variable the optimizer chooses to keep the propeller RPM within the bounds of the training data. The motor RPM is forced to match this value at the optimum.
-        'rpm_slack': {
-            'targets': 'rpm_slack',
-            'units': 'rpm',
-            'opt': True,
-            'lower': 1800,
-            'upper': 10800,
-            'ref': 10800,
-        },
+        # 'rpm_slack': {
+        #     'targets': 'rpm_slack',
+        #     'units': 'rpm',
+        #     'opt': True,
+        #     'lower': 1800,
+        #     'upper': 10800,
+        #     'ref': 10800,
+        # },
         }
 
         # Solver mode computes current/current_max internally in UAVPropMission.

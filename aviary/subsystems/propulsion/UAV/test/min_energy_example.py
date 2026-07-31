@@ -87,15 +87,16 @@ def CruiseExample():
     cruise_phase.add_objective('rc_electric.energy_constraint', loc='final', ref = -100, units='W*hr')
 
     prob.add_driver('IPOPT', use_coloring=False, max_iter=15)
+    prob.add_driver('SNOPT', use_coloring=False, max_iter=150)
 
-    prob.driver.opt_settings['print_level'] = 5
-    prob.driver.opt_settings['mu_strategy'] = 'monotone'
-    prob.driver.opt_settings['tol'] = 1e-5
-    prob.driver.opt_settings['mu_init'] = 1.0
-    prob.driver.opt_settings['limited_memory_max_history'] = 50
-    prob.driver.opt_settings['acceptable_tol'] = 5e-5
-    prob.driver.opt_settings['constr_viol_tol'] = 1e-5
-    prob.driver.opt_settings['acceptable_constr_viol_tol'] = 5e-5
+    #prob.driver.opt_settings['print_level'] = 5
+    #prob.driver.opt_settings['mu_strategy'] = 'monotone'
+    #prob.driver.opt_settings['tol'] = 1e-5
+    #prob.driver.opt_settings['mu_init'] = 1.0
+    #prob.driver.opt_settings['limited_memory_max_history'] = 50
+    #prob.driver.opt_settings['acceptable_tol'] = 5e-5
+    #prob.driver.opt_settings['constr_viol_tol'] = 1e-5
+    #prob.driver.opt_settings['acceptable_constr_viol_tol'] = 5e-5
     # prob.driver.options['debug_print'] = ['desvars', 'objs', 'nl_cons', 'ln_cons']
 
     prob.add_design_variables()
@@ -109,14 +110,14 @@ def CruiseExample():
 
     # prob.set_val('traj.cruise.states:mass', 4.1, units='kg')
 
-    prob.set_val('traj.cruise.controls:rpm_slack', 4000.0, units='rpm')
+    #prob.set_val('traj.cruise.controls:rpm_slack', 4000.0, units='rpm')
     prob.set_val('traj.cruise.controls:throttle', 0.3)
     prob.set_val('traj.cruise.controls:alpha', 3.0, units='deg')
 
     number = prob.aviary_inputs.get_val(Aircraft.Wing.WETTED_AREA, units='m**2')
     print('Wetted Area:', number)
 
-    prob.run_aviary_problem(run_driver=True)
+    prob.run_aviary_problem(run_driver=True, simulate=True)
 
     print(prob.get_val('traj.cruise.rhs_all.thrust_required', units='lbf'))
     print(prob.get_val('traj.cruise.rhs_all.thrust_residual', units='lbf'))

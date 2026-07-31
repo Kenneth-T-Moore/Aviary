@@ -119,18 +119,20 @@ class UAVPropMission(om.Group):
         )
 
 
-        self.add_subsystem(
-            'rpm_balance',
-            om.ExecComp(
-                'rpm_defect = rpm_slack - rpm_motor',
-                rpm_defect={'val': np.zeros(nn), 'units': 'rev/s'},
-                rpm_slack={'val': np.zeros(nn), 'units': 'rev/s'},
-                rpm_motor={'val': np.zeros(nn), 'units': 'rev/s'},
-                has_diag_partials=True,
-            ),
-            promotes_inputs=['rpm_slack'],
-        )
-        self.connect(Dynamic.Vehicle.Propulsion.RPM, 'rpm_balance.rpm_motor')
+        # self.add_subsystem(
+        #     'rpm_balance',
+        #     om.ExecComp(
+        #         'rpm_defect = rpm_slack - rpm_motor',
+        #         rpm_defect={'val': np.zeros(nn), 'units': 'rev/s'},
+        #         rpm_slack={'val': np.zeros(nn), 'units': 'rev/s'},
+        #         rpm_motor={'val': np.zeros(nn), 'units': 'rev/s'},
+        #         has_diag_partials=True,
+        #     ),
+        #     promotes_inputs=['rpm_slack'],
+        # )
+        #self.connect(Dynamic.Vehicle.Propulsion.RPM, 'rpm_balance.rpm_motor')
+
+        self.connect(Dynamic.Vehicle.Propulsion.RPM, 'rpm_slack')
 
 
 
@@ -187,7 +189,7 @@ class UAVPropMission(om.Group):
 
         """Constraints"""
               # Force commanded cruise RPM to match motor-computed RPM.
-        self.add_constraint('rpm_balance.rpm_defect', upper=0.004, lower=-0.004, ref = 4000, units='rpm')
+        #self.add_constraint('rpm_balance.rpm_defect', upper=0.004, lower=-0.004, ref = 4000, units='rpm')
 
         """for min_energy_example this should be commented out, but for cruise example it should be active"""
         # self.add_constraint('energy_constraint', lower=0.0, indices=[-1], ref=100, units='W*h')
