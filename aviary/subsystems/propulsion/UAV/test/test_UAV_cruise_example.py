@@ -51,15 +51,16 @@ def CruiseExample():
 
 
     prob.add_driver('IPOPT', use_coloring=False, max_iter=15)
+    prob.add_driver('SNOPT', use_coloring=True, max_iter=50)
 
-    prob.driver.opt_settings['print_level'] = 5
-    prob.driver.opt_settings['mu_strategy'] = 'monotone'
-    prob.driver.opt_settings['tol'] = 1e-5
-    prob.driver.opt_settings['mu_init'] = 1.0
-    prob.driver.opt_settings['limited_memory_max_history'] = 50
-    prob.driver.opt_settings['acceptable_tol'] = 5e-5
-    prob.driver.opt_settings['constr_viol_tol'] = 1e-5
-    prob.driver.opt_settings['acceptable_constr_viol_tol'] = 5e-5
+    #prob.driver.opt_settings['print_level'] = 5
+    #prob.driver.opt_settings['mu_strategy'] = 'monotone'
+    #prob.driver.opt_settings['tol'] = 1e-5
+    #prob.driver.opt_settings['mu_init'] = 1.0
+    #prob.driver.opt_settings['limited_memory_max_history'] = 50
+    #prob.driver.opt_settings['acceptable_tol'] = 5e-5
+    #prob.driver.opt_settings['constr_viol_tol'] = 1e-5
+    #prob.driver.opt_settings['acceptable_constr_viol_tol'] = 5e-5
     # prob.driver.options['debug_print'] = ['desvars', 'objs', 'nl_cons', 'ln_cons']
 
     prob.add_design_variables()
@@ -77,10 +78,10 @@ def CruiseExample():
     energy_guess = np.linspace(0.0, 16.0, n_state).reshape(-1, 1)
     prob.set_val('traj.cruise.states:energy_used', energy_guess, units='W*h')
 
-    prob.set_val('traj.cruise.controls:rpm_slack', 24, units='rev/s')
-    prob.set_val('traj.cruise.controls:throttle', 0.35)
+    #prob.set_val('traj.cruise.controls:rpm_slack', 24, units='rev/s')
+    #prob.set_val('traj.cruise.controls:throttle', 0.35)
 
-    prob.set_val('traj.cruise.controls:rpm_slack', 4000.0, units='rpm')
+    #prob.set_val('traj.cruise.controls:rpm_slack', 4000.0, units='rpm')
     prob.set_val('traj.cruise.controls:throttle', 0.3)
 
     number = prob.aviary_inputs.get_val(Aircraft.Wing.WETTED_AREA, units='m**2')

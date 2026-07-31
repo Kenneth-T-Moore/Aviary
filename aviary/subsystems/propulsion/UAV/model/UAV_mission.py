@@ -32,7 +32,7 @@ class UAVPropMission(om.Group):
 
 
         rpm_in = [(Dynamic.Vehicle.Propulsion.RPM, 'rpm_slack')]
-        self.set_input_defaults('rpm_slack', val=np.ones(nn) * 60.0, units='rev/s')
+        #self.set_input_defaults('rpm_slack', val=np.ones(nn) * 60.0, units='rev/s')
 
         self.add_subsystem(
             'throttle',
@@ -132,7 +132,7 @@ class UAVPropMission(om.Group):
         # )
         #self.connect(Dynamic.Vehicle.Propulsion.RPM, 'rpm_balance.rpm_motor')
 
-        self.connect(Dynamic.Vehicle.Propulsion.RPM, 'rpm_slack')
+        #self.connect(Dynamic.Vehicle.Propulsion.RPM, 'rpm_slack')
 
 
 
