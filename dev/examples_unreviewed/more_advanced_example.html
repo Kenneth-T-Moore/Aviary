@@ -720,12 +720,12 @@ Total number of inequality constraints...............:       27
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Number of Iterations....: 22
 
                                    (scaled)                 (unscaled)
-Objective...............:   2.5497020995242812e+00    2.5497020995242812e+00
-Dual infeasibility......:   1.7762092453654528e-08    1.7762092453654528e-08
-Constraint violation....:   4.0863308072914991e-15    4.0863308072914991e-15
+Objective...............:   2.5497020995242869e+00    2.5497020995242869e+00
+Dual infeasibility......:   1.7762090205444340e-08    1.7762090205444340e-08
+Constraint violation....:   1.1227700567823842e-14    1.1227700567823842e-14
 Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
-Complementarity.........:   9.0944744385330041e-08    9.0944744385330041e-08
-Overall NLP error.......:   9.0944744385330041e-08    9.0944744385330041e-08
+Complementarity.........:   9.0944744385317864e-08    9.0944744385317864e-08
+Overall NLP error.......:   9.0944744385317864e-08    9.0944744385317864e-08
 
 
 Number of objective function evaluations             = 28
@@ -735,7 +735,7 @@ Number of inequality constraint evaluations          = 28
 Number of equality constraint Jacobian evaluations   = 24
 Number of inequality constraint Jacobian evaluations = 24
 Number of Lagrangian Hessian evaluations             = 0
-Total seconds in IPOPT                               = 7.580
+Total seconds in IPOPT                               = 7.924
 
 EXIT: Optimal Solution Found.
 
@@ -791,7 +791,7 @@ However, we see that the optimizer chose to decrease the Mach number during the 
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>10204.477071171934
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>10204.477071171972
 </pre></div>
 </div>
 </div>
@@ -804,7 +804,7 @@ However, we see that the optimizer chose to decrease the Mach number during the 
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>22497.020995242783
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>22497.02099524287
 </pre></div>
 </div>
 </div>
@@ -880,7 +880,30 @@ Total number of inequality constraints...............:       27
         inequality constraints with only upper bounds:        0
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Optimization Problem -- Optimization using pyOpt_sparse
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Number of Iterations....: 22
+
+                                   (scaled)                 (unscaled)
+Objective...............:   2.5637089674782185e+00    2.5637089674782185e+00
+Dual infeasibility......:   3.9054364873847744e-08    3.9054364873847744e-08
+Constraint violation....:   8.3886101290280354e-15    8.3886101290280354e-15
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   9.0971568541128319e-08    9.0971568541128319e-08
+Overall NLP error.......:   9.0971568541128319e-08    9.0971568541128319e-08
+
+
+Number of objective function evaluations             = 28
+Number of objective gradient evaluations             = 23
+Number of equality constraint evaluations            = 28
+Number of inequality constraint evaluations          = 28
+Number of equality constraint Jacobian evaluations   = 24
+Number of inequality constraint Jacobian evaluations = 24
+Number of Lagrangian Hessian evaluations             = 0
+Total seconds in IPOPT                               = 7.638
+
+EXIT: Optimal Solution Found.
+
+
+Optimization Problem -- Optimization using pyOpt_sparse
 ================================================================================
     Objective Function: _objfunc
 
@@ -896,28 +919,6 @@ Total number of inequality constraints...............:       27
    Constraints (i - inequality, e - equality)
       Index  Name                                                   Type          Lower           Value           Upper    Status  Lagrange Multiplier (N/A)
          76  traj.climb_1.throttle[path]                               i   0.000000E+00    9.999996E-01    1.000000E+00         u    9.00000E+100
-
-Number of Iterations....: 22
-
-                                   (scaled)                 (unscaled)
-Objective...............:   2.5637089674782185e+00    2.5637089674782185e+00
-Dual infeasibility......:   3.9054365748144644e-08    3.9054365748144644e-08
-Constraint violation....:   7.9496241289360207e-15    7.9496241289360207e-15
-Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
-Complementarity.........:   9.0971568541184541e-08    9.0971568541184541e-08
-Overall NLP error.......:   9.0971568541184541e-08    9.0971568541184541e-08
-
-
-Number of objective function evaluations             = 28
-Number of objective gradient evaluations             = 23
-Number of equality constraint evaluations            = 28
-Number of inequality constraint evaluations          = 28
-Number of equality constraint Jacobian evaluations   = 24
-Number of inequality constraint Jacobian evaluations = 24
-Number of Lagrangian Hessian evaluations             = 0
-Total seconds in IPOPT                               = 7.291
-
-EXIT: Optimal Solution Found.
 </pre></div>
 </div>
 <div class="output text_html">
@@ -987,7 +988,27 @@ Total number of inequality constraints...............:       27
         inequality constraints with only upper bounds:        0
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Optimization Problem -- Optimization using pyOpt_sparse
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Number of Iterations....: 50
+
+                                   (scaled)                 (unscaled)
+Objective...............:   2.5117428911877941e+00    2.5117428911877941e+00
+Dual infeasibility......:   2.9540184853132181e-03    2.9540184853132181e-03
+Constraint violation....:   8.3009804030806790e-04    8.3009804030806790e-04
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   1.0002893841425734e-05    1.0002893841425734e-05
+Overall NLP error.......:   2.9540184853132181e-03    2.9540184853132181e-03
+
+
+Number of objective function evaluations             = 69
+Number of objective gradient evaluations             = 51
+Number of equality constraint evaluations            = 69
+Number of inequality constraint evaluations          = 69
+Number of equality constraint Jacobian evaluations   = 51
+Number of inequality constraint Jacobian evaluations = 51
+Number of Lagrangian Hessian evaluations             = 0
+Total seconds in IPOPT       
+
+Optimization Problem -- Optimization using pyOpt_sparse
 ================================================================================
     Objective Function: _objfunc
 
@@ -1026,25 +1047,7 @@ Total number of inequality constraints...............:       27
          62  traj.descent_1.collocation_constraint.defects:distance    e   0.000000E+00   -4.262566E-05    0.000000E+00         E    9.00000E+100
          63  traj.descent_1.collocation_constraint.defects:distance    e   0.000000E+00   -7.515343E-06    0.000000E+00         E    9.00000E+100
 
-Number of Iterations....: 50
-
-                                   (scaled)                 (unscaled)
-Objective...............:   2.5117428911854631e+00    2.5117428911854631e+00
-Dual infeasibility......:   2.9540184859246773e-03    2.9540184859246773e-03
-Constraint violation....:   8.3009804000883764e-04    8.3009804000883764e-04
-Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
-Complementarity.........:   1.0002893841320509e-05    1.0002893841320509e-05
-Overall NLP error.......:   2.9540184859246773e-03    2.9540184859246773e-03
-
-
-Number of objective function evaluations             = 69
-Number of objective gradient evaluations             = 51
-Number of equality constraint evaluations            = 69
-Number of inequality constraint evaluations          = 69
-Number of equality constraint Jacobian evaluations   = 51
-Number of inequality constraint Jacobian evaluations = 51
-Number of Lagrangian Hessian evaluations             = 0
-Total seconds in IPOPT                               = 18.381
+                        = 19.383
 
 EXIT: Maximum Number of Iterations Exceeded.
 </pre></div>
@@ -1072,7 +1075,7 @@ Aviary run failed. See the dashboard for more details.
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>10032.296984901654
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>10032.29698491224
 </pre></div>
 </div>
 </div>
