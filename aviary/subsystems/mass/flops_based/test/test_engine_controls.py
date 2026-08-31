@@ -2,6 +2,7 @@ import unittest
 
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials
+from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
 from aviary.subsystems.mass.flops_based.engine_controls import TransportEngineCtrlsMass
@@ -11,17 +12,19 @@ from aviary.validation_cases.validation_tests import (
     get_flops_case_names,
     get_flops_options,
     print_case,
+    Version,
 )
 from aviary.variable_info.variables import Aircraft
 
 
+@use_tempdirs
 class BasicTransportEngineCtrlsTest(unittest.TestCase):
     """Test the BasicTransportEngineCtrls component."""
 
     def setUp(self):
         self.prob = om.Problem()
 
-    @parameterized.expand(get_flops_case_names(omit='N3CC'), name_func=print_case)
+    @parameterized.expand(get_flops_case_names(omit='AdvancedSingleAisle'), name_func=print_case)
     def test_case(self, case_name):
         prob = self.prob
 
@@ -37,10 +40,12 @@ class BasicTransportEngineCtrlsTest(unittest.TestCase):
         prob.setup(force_alloc_complex=True)
 
         flops_validation_test(
+            self,
             prob,
             case_name,
             input_keys=[Aircraft.Propulsion.TOTAL_SCALED_SLS_THRUST],
             output_keys=Aircraft.Propulsion.TOTAL_ENGINE_CONTROLS_MASS,
+            version=Version.TRANSPORT_and_BWB,
             atol=2e-12,
             excludes=['size_prop.*'],
         )

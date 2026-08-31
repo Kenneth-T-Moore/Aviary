@@ -3,7 +3,7 @@
 name: Test Docs
 
 on:
-  # Trigger on push or pull request events for the main branch
+  # Trigger on push or pull request events for the main branch.
   push:
     branches: [ main ]
   pull_request:
@@ -14,16 +14,20 @@ on:
   # Allow running the workflow manually from the Actions tab
   workflow_dispatch:
 
+concurrency:
+  # Cancel any existing CI runs if we push to this branch
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
 
   latest_docs:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
 
     steps:
       - name: Checkout actions
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
@@ -32,21 +36,20 @@ jobs:
       - name: prepare_docs_environment
         uses: ./actions/.github/actions/prepare_environment
         with:
-            NAME: 'latest'
-            PY: 3.12
-            NUMPY: 1
-            SCIPY: 1
-            PYOPTSPARSE: 'v2.9.1'
-            SNOPT: '7.7'
-            OPENMDAO: 'latest'
-            DYMOS: 'latest'
-            SSH_PRIVATE_KEY: ${{secrets.SSH_PRIVATE_KEY}}
-            SSH_KNOWN_HOSTS: ${{secrets.SSH_KNOWN_HOSTS}}
-            SNOPT_LOCATION_77: ${{ secrets.SNOPT_LOCATION_77 }}
+          NAME: 'latest'
+          OPENMDAO_PIXI_ENVIRONMENT: 'py313'
+          OPENMDAO_INSTALL_FROM: 'pypi'
+          OPENMDAO: ''
+          SNOPT: '7.7'
+          DYMOS: 'latest'
+          SSH_PRIVATE_KEY: ${{secrets.SSH_PRIVATE_KEY}}
+          SSH_KNOWN_HOSTS: ${{secrets.SSH_KNOWN_HOSTS}}
+          SNOPT_LOCATION_77: ${{ secrets.SNOPT_LOCATION_77 }}
 
       - name: Check docs linting
         shell: bash -l {0}
         run: |
+          eval "$(pixi shell-hook -e py313 --manifest-path=${{ env.PIXI_MANIFEST }})"
           echo "============================================================="
           echo "Lint the docs"
           echo "============================================================="
@@ -56,7 +59,8 @@ jobs:
         id: build_docs
         shell: bash -l {0}
         run: |
-          pip install -U jupyter-book
+          eval "$(pixi shell-hook -e py313 --manifest-path=${{ env.PIXI_MANIFEST }})"
+          pip install -U "jupyter-book<2"
           cd aviary/docs
           echo "============================================================="
           echo "Build the docs"
@@ -68,6 +72,7 @@ jobs:
         shell: bash -l {0}
         if: failure() && steps.build_docs.outcome == 'failure'
         run: |
+          eval "$(pixi shell-hook -e py313 --manifest-path=${{ env.PIXI_MANIFEST }})"
           cd $HOME/work/Aviary/Aviary/aviary/docs
           find _build/html/reports/ -type f -name '*.log' \
           -exec echo "#################################################################" \; \
@@ -75,21 +80,28 @@ jobs:
           -exec echo "#################################################################" \; \
           -exec cat {} \;
 
-      - name: Publish docs to github.io
-        if: |
-          github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Publish dev docs to gh-pages
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         shell: bash -l {0}
         run: |
+          eval "$(pixi shell-hook -e py313 --manifest-path=${{ env.PIXI_MANIFEST }})"
+          pip install packaging
           echo "============================================================="
-          echo "Publishing Docs to github.io"
+          echo "Publishing dev docs to gh-pages"
           echo "============================================================="
-          pip install ghp-import
-          cd $HOME/work/Aviary/Aviary/aviary
-          ghp-import -n -p -f docs/_build/html
+          cd $HOME/work/Aviary/Aviary
+          # Ensure release tags are visible so versions.json enumerates them.
+          git fetch --tags --force origin || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python aviary/docs/publish_docs.py \
+            --kind dev \
+            --html-dir aviary/docs/_build/html
 
       - name: Scan for security issues
         shell: bash -l {0}
         run: |
+          eval "$(pixi shell-hook -e py313 --manifest-path=${{ env.PIXI_MANIFEST }})"
           python -m pip install bandit
           echo "============================================================="
           echo "Run bandit scan for medium/high severity issues"
@@ -98,7 +110,7 @@ jobs:
           python -m bandit -r -ll aviary
 
       - name: Checkout actions (again)
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions

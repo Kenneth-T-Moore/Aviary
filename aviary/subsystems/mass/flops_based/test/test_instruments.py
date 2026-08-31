@@ -2,6 +2,7 @@ import unittest
 
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials
+from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
 from aviary.subsystems.mass.flops_based.instruments import TransportInstrumentMass
@@ -11,10 +12,12 @@ from aviary.validation_cases.validation_tests import (
     get_flops_case_names,
     get_flops_inputs,
     print_case,
+    Version,
 )
-from aviary.variable_info.variables import Aircraft, Mission
+from aviary.variable_info.variables import Aircraft
 
 
+@use_tempdirs
 class TransportInstrumentsMassTest(unittest.TestCase):
     def setUp(self):
         self.prob = om.Problem()
@@ -35,7 +38,6 @@ class TransportInstrumentsMassTest(unittest.TestCase):
             Aircraft.Propulsion.TOTAL_NUM_WING_ENGINES: inputs.get_val(
                 Aircraft.Propulsion.TOTAL_NUM_WING_ENGINES
             ),
-            Mission.Constraints.MAX_MACH: inputs.get_val(Mission.Constraints.MAX_MACH),
         }
 
         prob.model.add_subsystem(
@@ -44,16 +46,22 @@ class TransportInstrumentsMassTest(unittest.TestCase):
             promotes_outputs=[
                 Aircraft.Instruments.MASS,
             ],
-            promotes_inputs=[Aircraft.Fuselage.PLANFORM_AREA, Aircraft.Instruments.MASS_SCALER],
+            promotes_inputs=['*'],
         )
 
         prob.setup(check=False, force_alloc_complex=True)
 
         flops_validation_test(
+            self,
             prob,
             case_name,
-            input_keys=[Aircraft.Fuselage.PLANFORM_AREA, Aircraft.Instruments.MASS_SCALER],
+            input_keys=[
+                Aircraft.Fuselage.PLANFORM_AREA,
+                Aircraft.Instruments.MASS_SCALER,
+                Aircraft.Design.MAX_MACH,
+            ],
             output_keys=Aircraft.Instruments.MASS,
+            version=Version.TRANSPORT_and_BWB,
             tol=1e-3,
         )
 
@@ -77,7 +85,7 @@ class TransportInstrumentsMassTest2(unittest.TestCase):
     def test_case(self):
         prob = om.Problem()
 
-        inputs = get_flops_inputs('N3CC', preprocess=True)
+        inputs = get_flops_inputs('AdvancedSingleAisle', preprocess=True)
 
         options = {
             Aircraft.CrewPayload.NUM_FLIGHT_CREW: inputs.get_val(
@@ -89,7 +97,6 @@ class TransportInstrumentsMassTest2(unittest.TestCase):
             Aircraft.Propulsion.TOTAL_NUM_WING_ENGINES: inputs.get_val(
                 Aircraft.Propulsion.TOTAL_NUM_WING_ENGINES
             ),
-            Mission.Constraints.MAX_MACH: inputs.get_val(Mission.Constraints.MAX_MACH),
         }
 
         prob.model.add_subsystem(
@@ -98,10 +105,15 @@ class TransportInstrumentsMassTest2(unittest.TestCase):
             promotes_outputs=[
                 Aircraft.Instruments.MASS,
             ],
-            promotes_inputs=[Aircraft.Fuselage.PLANFORM_AREA, Aircraft.Instruments.MASS_SCALER],
+            promotes_inputs=[
+                Aircraft.Fuselage.PLANFORM_AREA,
+                Aircraft.Instruments.MASS_SCALER,
+                Aircraft.Design.MAX_MACH,
+            ],
         )
         prob.setup(check=False, force_alloc_complex=True)
         prob.set_val(Aircraft.Fuselage.PLANFORM_AREA, 1500.0, 'ft**2')
+        prob.set_val(Aircraft.Design.MAX_MACH, 0.82, 'unitless')
 
         partial_data = prob.check_partials(out_stream=None, method='cs')
         assert_check_partials(partial_data, atol=1e-12, rtol=1e-12)

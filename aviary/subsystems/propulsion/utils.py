@@ -13,14 +13,16 @@ import openmdao.api as om
 
 import aviary.constants as constants
 from aviary.utils.aviary_values import AviaryValues
-from aviary.utils.named_values import NamedValues, get_items, get_keys
+from aviary.utils.named_values import NamedValues
 from aviary.utils.utils import isiterable
-from aviary.variable_info.variable_meta_data import _MetaData
+from aviary.variable_info.variable_meta_data import CoreMetaData
 from aviary.variable_info.variables import Aircraft, Dynamic, Mission
+import warnings
+from openmdao.utils.units import convert_units
 
 
 class EngineModelVariables(Enum):
-    """Define constants that map to supported variable names in an engine model."""
+    """Define constants that map to supported variable names in an engine deck."""
 
     MACH = Dynamic.Atmosphere.MACH
     ALTITUDE = Dynamic.Mission.ALTITUDE
@@ -33,7 +35,7 @@ class EngineModelVariables(Enum):
     SHAFT_POWER_CORRECTED = 'shaft_power_corrected'
     RAM_DRAG = 'ram_drag'
     RPM = Dynamic.Vehicle.Propulsion.RPM
-    FUEL_FLOW = Dynamic.Vehicle.Propulsion.FUEL_FLOW_RATE
+    FUEL_FLOW = Dynamic.Vehicle.Propulsion.FUEL_MASS_FLOW_RATE
     ELECTRIC_POWER_IN = Dynamic.Vehicle.Propulsion.ELECTRIC_POWER_IN
     NOX_RATE = Dynamic.Vehicle.Propulsion.NOX_RATE
     TEMPERATURE_T4 = Dynamic.Vehicle.Propulsion.TEMPERATURE_T4
@@ -67,6 +69,15 @@ max_variables = {
     EngineModelVariables.SHAFT_POWER: Dynamic.Vehicle.Propulsion.SHAFT_POWER_MAX,
 }
 
+# class InstallationDragFlag(Enum):
+#     """
+#     Define constants that map to supported options for scaling of installation drag.
+#     """
+#     OFF = auto()
+#     DELTA_MAX_NOZZLE_AREA = auto()
+#     MAX_NOZZLE_AREA = auto()
+#     REF_NOZZLE_EXIT_AREA = auto()
+
 
 def convert_geopotential_altitude(altitude):
     """
@@ -88,11 +99,13 @@ def convert_geopotential_altitude(altitude):
     except TypeError:
         altitude = [altitude]
 
-    g = constants.GRAV_METRIC_FLOPS
-    radius_earth = constants.RADIUS_EARTH_METRIC
-    CM1 = 0.99850  # Center of mass (Earth)? Unknown
-    OC2 = 26.76566e-10  # Unknown
-    GNS = 9.8236930  # grav_accel_at_surface_earth?
+    # ensure gravity is in correct units
+    g_m_per_s2 = convert_units(constants.GRAV_EARTH[0], constants.GRAV_EARTH[1], 'm/s**2')
+    radius_earth_meters = convert_units(constants.RADIUS_EARTH[0], constants.RADIUS_EARTH[1], 'm')
+
+    CM1 = 0.99850  # Oblateness/Gravity exponent (accounts for earth not being perfect sphere)
+    OC2 = 26.76566e-10  # Accounts for centrifugal acceleration due to Earth's rotation
+    GNS = 9.8236930  # grav_accel_at_surface_earth? This may or may not account for the rotation rate of the earth as well.
 
     for i, alt in enumerate(altitude):
         HFT = alt
@@ -102,9 +115,11 @@ def convert_geopotential_altitude(altitude):
         DH = float('inf')
 
         while abs(DH) > 1.0:
-            R = radius_earth + Z
-            GN = GNS * (radius_earth / R) ** (CM1 + 1.0)
-            H = (R * GN * ((R / radius_earth) ** CM1 - 1.0) / CM1 - Z * (R - Z / 2.0) * OC2) / g
+            R = radius_earth_meters + Z
+            GN = GNS * (radius_earth_meters / R) ** (CM1 + 1.0)
+            H = (
+                R * GN * ((R / radius_earth_meters) ** CM1 - 1.0) / CM1 - Z * (R - Z / 2.0) * OC2
+            ) / g_m_per_s2
 
             DH = HO - H
             Z += DH
@@ -121,10 +136,10 @@ def build_engine_deck(
     options: AviaryValues,
     name: str = None,
     required_variables=None,
-    meta_data=_MetaData,
+    meta_data=CoreMetaData,
 ):
     """
-    Creates an EngineDeck using avaliable inputs and options in aviary_options.
+    Creates an EngineDeck using available inputs and options in aviary_options.
 
     Parameter
     ----------
@@ -147,9 +162,7 @@ def build_engine_deck(
     EngineDeck
         EngineDeck created using provided options.
     """
-    # Required engine vars include one setting from Mission.Summary
     engine_vars = [item for item in Aircraft.Engine.__dict__.values()]
-    engine_vars.append(Mission.Summary.FUEL_FLOW_SCALER)
 
     # Build a single engine deck, currently ignoring vectorization of AviaryValues
     # (use first item in arrays when appropriate)
@@ -163,7 +176,7 @@ def build_engine_deck(
         else:
             try:
                 aviary_val = options.get_val(var, units)
-            # if not, use default value from _MetaData?
+            # if not, use default value from CoreMetaData?
             except KeyError:
                 # currently skipping filling "missing" variables with defaults
                 # engine_options.set_val(var, meta_data[var]['default_value'], units)
@@ -233,7 +246,7 @@ class EngineDataInterpolator(om.Group):
         self.options.declare(
             'interpolator_outputs',
             types=dict,
-            desc='Dictionary describing which variables will be avaliable to the '
+            desc='Dictionary describing which variables will be available to the '
             'interpolator as training data at runtime, and their units',
         )
 
@@ -268,7 +281,7 @@ class EngineDataInterpolator(om.Group):
         )
 
         # check that data in table are all vectors of the same length
-        for idx, item in enumerate(get_items(input_data)):
+        for idx, item in enumerate(input_data.items()):
             val = item[1][0]
             if idx != 0:
                 prev_model_length = model_length
@@ -281,7 +294,7 @@ class EngineDataInterpolator(om.Group):
                 )
 
         # add inputs and outputs to interpolator
-        for input in get_keys(input_data):
+        for input in input_data.keys():
             values, units = input_data.get_item(input)
             engine.add_input(input, training_data=values, units=units)
 
@@ -399,32 +412,3 @@ class UncorrectData(om.Group):
             ),
             promotes=['*'],
         )
-
-
-# class InstallationDragFlag(Enum):
-#     """
-#     Define constants that map to supported options for scaling of installation drag.
-#     """
-#     OFF = auto()
-#     DELTA_MAX_NOZZLE_AREA = auto()
-#     MAX_NOZZLE_AREA = auto()
-#     REF_NOZZLE_EXIT_AREA = auto()
-
-
-class PropellerModelVariables(Enum):
-    """Define constants that map to supported variable names in a propeller model."""
-
-    HELICAL_MACH = 'Helical_Mach'
-    MACH = 'Mach'
-    CP = 'CP'  # power coefficient
-    CT = 'CT'  # thrust coefficient
-    J = 'J'  # advanced ratio
-
-
-default_propeller_units = {
-    PropellerModelVariables.HELICAL_MACH: 'unitless',
-    PropellerModelVariables.MACH: 'unitless',
-    PropellerModelVariables.CP: 'unitless',
-    PropellerModelVariables.CT: 'unitless',
-    PropellerModelVariables.J: 'unitless',
-}

@@ -1,3 +1,4 @@
+from copy import deepcopy
 import unittest
 
 import dymos as dm
@@ -6,15 +7,11 @@ from dymos.transcriptions.transcription_base import TranscriptionBase
 from openmdao.utils.assert_utils import assert_near_equal
 from openmdao.utils.testing_utils import use_tempdirs
 
-from aviary.interface.methods_for_level2 import AviaryProblem
+from aviary.core.aviary_problem import AviaryProblem
+from aviary.models.external_subsystems.simple_aero.simple_aero_builder import SimpleAeroBuilder
 from aviary.subsystems.propulsion.engine_model import EngineModel
 from aviary.utils.aviary_values import AviaryValues
 from aviary.variable_info.variables import Dynamic
-
-if hasattr(TranscriptionBase, 'setup_polynomial_controls'):
-    use_new_dymos_syntax = False
-else:
-    use_new_dymos_syntax = True
 
 
 class PreMissionEngine(om.Group):
@@ -66,13 +63,7 @@ class SimpleEngine(om.ExplicitComponent):
             desc='Current net thrust produced (scaled)',
         )
         self.add_output(
-            Dynamic.Vehicle.Propulsion.THRUST_MAX,
-            shape=nn,
-            units='lbf',
-            desc='Current net thrust produced (scaled)',
-        )
-        self.add_output(
-            Dynamic.Vehicle.Propulsion.FUEL_FLOW_RATE_NEGATIVE,
+            Dynamic.Vehicle.Propulsion.FUEL_MASS_FLOW_RATE_NEGATIVE,
             shape=nn,
             units='lbm/s',
             desc='Current fuel flow rate (scaled)',
@@ -105,8 +96,7 @@ class SimpleEngine(om.ExplicitComponent):
 
         # calculate outputs
         outputs[Dynamic.Vehicle.Propulsion.THRUST] = 10000.0 * combined_throttle
-        outputs[Dynamic.Vehicle.Propulsion.THRUST_MAX] = 10000.0
-        outputs[Dynamic.Vehicle.Propulsion.FUEL_FLOW_RATE_NEGATIVE] = -10.0 * combined_throttle
+        outputs[Dynamic.Vehicle.Propulsion.FUEL_MASS_FLOW_RATE_NEGATIVE] = -10.0 * combined_throttle
         outputs[Dynamic.Vehicle.Propulsion.TEMPERATURE_T4] = 2800.0
 
 
@@ -115,22 +105,25 @@ class SimpleTestEngine(EngineModel):
         aviary_inputs = AviaryValues()
         super().__init__(name, options=aviary_inputs)
 
-    def build_pre_mission(self, aviary_inputs=AviaryValues()):
+    def build_pre_mission(self, aviary_inputs=AviaryValues(), subsystem_options=None):
         return PreMissionEngine()
 
-    def build_mission(self, num_nodes, aviary_inputs):
+    def build_mission(self, num_nodes, aviary_inputs, user_options, subsystem_options):
         return SimpleEngine(num_nodes=num_nodes)
 
-    def get_controls(self, **kwargs):
+    def get_controls(self, aviary_inputs=None, user_options=None, subsystem_options=None):
         controls_dict = {
-            'different_throttle': {'units': 'unitless', 'lower': 0.0, 'upper': 0.1},
+            'different_throttle': {
+                'units': 'unitless',
+                'lower': 0.0,
+                'upper': 0.1,
+                'control_type': 'polynomial',
+                'order': 3,
+            },
         }
-        if use_new_dymos_syntax:
-            controls_dict['different_throttle']['control_type'] = 'polynomial'
-            controls_dict['different_throttle']['order'] = 3
         return controls_dict
 
-    def get_bus_variables(self):
+    def get_pre_mission_bus_variables(self, aviary_inputs, mission_info=None):
         bus_dict = {
             'y': {
                 'mission_name': 'y',
@@ -139,7 +132,7 @@ class SimpleTestEngine(EngineModel):
         }
         return bus_dict
 
-    def get_initial_guesses(self):
+    def get_initial_guesses(self, aviary_inputs=None, user_options=None, subsystem_options=None):
         initial_guesses_dict = {
             'different_throttle': {
                 'val': 0.05,
@@ -150,66 +143,60 @@ class SimpleTestEngine(EngineModel):
         return initial_guesses_dict
 
 
+class NoSolverengine(SimpleTestEngine):
+    def needs_mission_solver(self, aviary_inputs, user_options, subsystem_options):
+        return False
+
+
+phase_info = {
+    'pre_mission': {
+        'include_takeoff': False,
+        'optimize_mass': True,
+    },
+    'cruise': {
+        'subsystem_options': {'aerodynamics': {'method': 'computed'}},
+        'user_options': {
+            'num_segments': 2,
+            'order': 3,
+            'mach_optimize': False,
+            'mach_polynomial_order': 1,
+            'mach_initial': (0.72, 'unitless'),
+            'mach_final': (0.72, 'unitless'),
+            'mach_bounds': ((0.7, 0.74), 'unitless'),
+            'altitude_optimize': False,
+            'altitude_polynomial_order': 1,
+            'altitude_initial': (35000.0, 'ft'),
+            'altitude_final': (35000.0, 'ft'),
+            'altitude_bounds': ((23000.0, 38000.0), 'ft'),
+            'throttle_enforcement': 'boundary_constraint',
+            'time_initial': (0.0, 'min'),
+            'time_duration_bounds': ((10.0, 30.0), 'min'),
+        },
+        'initial_guesses': {'time': ([0, 30], 'min')},
+    },
+    'post_mission': {
+        'include_landing': False,
+    },
+}
+
+
 @use_tempdirs
 class CustomEngineTest(unittest.TestCase):
     def test_custom_engine(self):
-        phase_info = {
-            'pre_mission': {
-                'include_takeoff': False,
-                'external_subsystems': [],
-                'optimize_mass': True,
-            },
-            'cruise': {
-                'subsystem_options': {'core_aerodynamics': {'method': 'computed'}},
-                'user_options': {
-                    'optimize_mach': False,
-                    'optimize_altitude': False,
-                    'polynomial_control_order': 1,
-                    'num_segments': 2,
-                    'order': 3,
-                    'solve_for_distance': False,
-                    'initial_mach': (0.72, 'unitless'),
-                    'final_mach': (0.72, 'unitless'),
-                    'mach_bounds': ((0.7, 0.74), 'unitless'),
-                    'initial_altitude': (35000.0, 'ft'),
-                    'final_altitude': (35000.0, 'ft'),
-                    'altitude_bounds': ((23000.0, 38000.0), 'ft'),
-                    'throttle_enforcement': 'boundary_constraint',
-                    'fix_initial': False,
-                    'constrain_final': False,
-                    'fix_duration': False,
-                    'initial_bounds': ((0.0, 0.0), 'min'),
-                    'duration_bounds': ((10.0, 30.0), 'min'),
-                },
-                'initial_guesses': {'time': ([0, 30], 'min')},
-            },
-            'post_mission': {
-                'include_landing': False,
-                'external_subsystems': [],
-            },
-        }
-
         prob = AviaryProblem(reports=False)
 
         # Load aircraft and options data from user
         # Allow for user overrides here
         prob.load_inputs(
-            'models/test_aircraft/aircraft_for_bench_GwFm.csv',
+            'validation_cases/validation_data/test_models/aircraft_for_bench_FwFm.csv',
             phase_info,
-            engine_builders=[SimpleTestEngine()],
         )
 
-        # Preprocess inputs
+        prob.load_external_subsystems([SimpleTestEngine()])
+
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-
-        prob.add_phases()
-
-        prob.add_post_mission_systems()
-
-        # Link phases and variables
-        prob.link_phases()
+        prob.build_model()
 
         prob.add_driver('SLSQP', verbosity=0)
 
@@ -219,20 +206,47 @@ class CustomEngineTest(unittest.TestCase):
 
         prob.setup()
 
-        prob.set_initial_guesses()
-
         prob.final_setup()
 
         # check that the different throttle initial guess has been set correctly
         initial_guesses = prob.get_val('traj.cruise.controls:different_throttle')[0]
-        assert_near_equal(float(initial_guesses), 0.05)
+        assert_near_equal(initial_guesses, 0.05)
 
         # and run mission
         dm.run_problem(prob, run_driver=True, simulate=False, make_plots=False)
 
         tol = 1.0e-4
 
-        assert_near_equal(float(prob.get_val('traj.cruise.rhs_all.y')), 4.0, tol)
+        assert_near_equal(prob.get_val('traj.cruise.rhs_all.y'), 4.0, tol)
+
+    def test_no_solver_loop(self):
+        local_phase_info = deepcopy(phase_info)
+        local_phase_info['cruise']['user_options']['throttle_enforcement'] = 'control'
+        local_phase_info['cruise']['subsystem_options']['aerodynamics'] = {
+            'method': 'external',
+        }
+        prob = AviaryProblem(reports=False)
+
+        prob.load_inputs(
+            'validation_cases/validation_data/test_models/aircraft_for_bench_FwFm.csv',
+            local_phase_info,
+        )
+
+        # Replace both engine and aero with external builders that don't requires solvers.
+        prob.load_external_subsystems([NoSolverengine(), SimpleAeroBuilder()])
+
+        prob.check_and_preprocess_inputs()
+        prob.build_model()
+        prob.add_driver('SLSQP', verbosity=0)
+        prob.add_design_variables()
+        prob.add_objective('fuel_burned')
+
+        prob.setup()
+
+        prob.final_setup()
+
+        subsolver = prob.model.traj.phases.cruise.rhs_all.solver_sub.nonlinear_solver
+        self.assertTrue(isinstance(subsolver, om.NonlinearRunOnce))
 
 
 if __name__ == '__main__':

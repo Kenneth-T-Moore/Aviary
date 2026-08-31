@@ -12,14 +12,12 @@ class TestBatteryDerivs(unittest.TestCase):
     def setUp(self):
         self.prob = om.Problem()
 
-        self.options = av.AviaryValues()
-
         self.battery = BatteryBuilder()
 
     def test_battery_premission(self):
         prob = self.prob
         prob.model.add_subsystem(
-            'battery_premission', self.battery.build_pre_mission(self.options), promotes=['*']
+            'battery_premission', self.battery.build_pre_mission(), promotes=['*']
         )
 
         prob.setup(force_alloc_complex=True)
@@ -45,7 +43,9 @@ class TestBatteryDerivs(unittest.TestCase):
     def test_battery_mission(self):
         prob = self.prob
         prob.model.add_subsystem(
-            'battery_mission', subsys=self.battery.build_mission(num_nodes=4), promotes=['*']
+            'battery_mission',
+            subsys=self.battery.build_mission(num_nodes=4),
+            promotes=['*'],
         )
 
         efficiency = 0.95
@@ -70,7 +70,7 @@ class TestBatteryDerivs(unittest.TestCase):
         assert_check_partials(partial_data, atol=1e-9, rtol=1e-9)
 
 
-class TestBattery(av.TestSubsystemBuilderBase):
+class TestBattery(av.TestSubsystemBuilder):
     """
     That class inherits from TestSubsystemBuilder. So all the test functions are
     within that inherited class. The setUp() method prepares the class and is run

@@ -19,7 +19,7 @@ from aviary.variable_info.variables import Aircraft, Dynamic
 aliases = {
     Dynamic.Mission.ALTITUDE: ['h', 'alt', 'altitude'],
     Dynamic.Atmosphere.MACH: ['m', 'mach'],
-    'lift_coefficient': ['cl', 'coefficient_of_lift', 'lift_coefficient'],
+    Dynamic.Vehicle.LIFT_COEFFICIENT: ['cl', 'coefficient_of_lift', 'lift_coefficient'],
     'lift_dependent_drag_coefficient': [
         'cdi',
         'lift_dependent_drag_coefficient',
@@ -97,11 +97,11 @@ class TabularAeroGroup(om.Group):
         if isinstance(CDI_table, str):
             CDI_table = get_path(CDI_table)
         if isinstance(CDI_table, Path):
-            CDI_table = read_data_file(CDI_table, aliases=aliases)
+            CDI_table, _, _ = read_data_file(CDI_table, aliases=aliases)
         if isinstance(CD0_table, str):
             CD0_table = get_path(CD0_table)
         if isinstance(CD0_table, Path):
-            CD0_table = read_data_file(CD0_table, aliases=aliases)
+            CD0_table, _, _ = read_data_file(CD0_table, aliases=aliases)
 
         if connect_training_data or not structured:
             method = 'lagrange3'
@@ -109,7 +109,7 @@ class TabularAeroGroup(om.Group):
             method = '2D-lagrange3'
 
         CD0_interp = build_data_interpolator(
-            nn,
+            num_nodes=nn,
             interpolator_data=CD0_table,
             interpolator_outputs={'zero_lift_drag_coefficient': 'unitless'},
             method=method,
@@ -118,7 +118,7 @@ class TabularAeroGroup(om.Group):
         )
 
         CDI_interp = build_data_interpolator(
-            nn,
+            num_nodes=nn,
             interpolator_data=CDI_table,
             interpolator_outputs={'lift_dependent_drag_coefficient': 'unitless'},
             method=method,
@@ -142,7 +142,7 @@ class TabularAeroGroup(om.Group):
                 Aircraft.Wing.AREA,
                 Dynamic.Atmosphere.DYNAMIC_PRESSURE,
             ],
-            promotes_outputs=[('cl', 'lift_coefficient'), Dynamic.Vehicle.LIFT],
+            promotes_outputs=[Dynamic.Vehicle.LIFT_COEFFICIENT, Dynamic.Vehicle.LIFT],
         )
 
         if connect_training_data:
@@ -174,7 +174,7 @@ class TabularAeroGroup(om.Group):
         )
 
         self.add_subsystem(
-            Dynamic.Vehicle.DRAG,
+            'drag_coefficient',
             Drag(num_nodes=nn),
             promotes_inputs=[
                 Aircraft.Design.ZERO_LIFT_DRAG_COEFF_FACTOR,
@@ -187,7 +187,7 @@ class TabularAeroGroup(om.Group):
                 Dynamic.Atmosphere.MACH,
                 Dynamic.Atmosphere.DYNAMIC_PRESSURE,
             ],
-            promotes_outputs=['CD', Dynamic.Vehicle.DRAG],
+            promotes_outputs=[Dynamic.Vehicle.DRAG_COEFFICIENT, Dynamic.Vehicle.DRAG],
         )
 
 

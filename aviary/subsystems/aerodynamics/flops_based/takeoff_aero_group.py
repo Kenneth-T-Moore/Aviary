@@ -10,6 +10,7 @@ from aviary.subsystems.aerodynamics.flops_based.ground_effect import GroundEffec
 from aviary.subsystems.aerodynamics.gasp_based.common import AeroForces
 from aviary.utils.aviary_values import AviaryValues
 from aviary.variable_info.variables import Aircraft, Dynamic, Mission
+from aviary.variable_info.functions import add_aviary_option
 
 
 class TakeoffAeroGroup(om.Group):
@@ -71,16 +72,10 @@ class TakeoffAeroGroup(om.Group):
             'landing_gear_up', default=False, types=bool, desc='true for retracted landing gear'
         )
 
-        options.declare(
-            'aviary_options',
-            types=AviaryValues,
-            desc='collection of Aircraft/Mission specific options',
-        )
+        add_aviary_option(self, Aircraft.LandingGear.DRAG_COEFFICIENT)
 
     def setup(self):
         options = self.options
-
-        aviary_options = options['aviary_options']
 
         nn = options['num_nodes']
         angles_of_attack = np.array(options['angles_of_attack']) * _units.degree
@@ -92,6 +87,8 @@ class TakeoffAeroGroup(om.Group):
         drag_coefficient_factor = options['drag_coefficient_factor']
 
         drag_coefficients = np.array(options['drag_coefficients']) * drag_coefficient_factor
+
+        gear_drag = options[Aircraft.LandingGear.DRAG_COEFFICIENT]
 
         inputs = [Dynamic.Vehicle.ANGLE_OF_ATTACK]
 
@@ -132,7 +129,7 @@ class TakeoffAeroGroup(om.Group):
         f = 'climb_drag_coefficient = ground_effect_drag'
 
         if not options['landing_gear_up']:
-            gear_drag = aviary_options.get_val(Aircraft.LandingGear.DRAG_COEFFICIENT)
+            gear_drag = self.options[Aircraft.LandingGear.DRAG_COEFFICIENT]
             f = f + f' + {gear_drag}'
 
         if options['use_spoilers']:
@@ -149,14 +146,16 @@ class TakeoffAeroGroup(om.Group):
                     has_diag_partials=True,
                 ),
                 promotes_inputs=['ground_effect_lift'],
-                promotes_outputs=['climb_lift_coefficient'],
+                promotes_outputs=[('climb_lift_coefficient', Dynamic.Vehicle.LIFT_COEFFICIENT)],
             )
 
             self.connect('ground_effect.lift_coefficient', 'ground_effect_lift')
-            self.connect('climb_lift_coefficient', 'aero_forces.CL')
 
         else:
-            self.connect('ground_effect.lift_coefficient', 'aero_forces.CL')
+            self.promotes(
+                'ground_effect',
+                outputs=[('lift_coefficient', Dynamic.Vehicle.LIFT_COEFFICIENT)],
+            )
 
         self.add_subsystem(
             'add_extra_drag_coefficients',
@@ -167,13 +166,17 @@ class TakeoffAeroGroup(om.Group):
                 has_diag_partials=True,
             ),
             promotes_inputs=['ground_effect_drag'],
-            promotes_outputs=['climb_drag_coefficient'],
+            promotes_outputs=[('climb_drag_coefficient', Dynamic.Vehicle.DRAG_COEFFICIENT)],
         )
 
         self.connect('ground_effect.drag_coefficient', 'ground_effect_drag')
-        self.connect('climb_drag_coefficient', 'aero_forces.CD')
 
-        inputs = [Dynamic.Atmosphere.DYNAMIC_PRESSURE, Aircraft.Wing.AREA]
+        inputs = [
+            Dynamic.Atmosphere.DYNAMIC_PRESSURE,
+            Dynamic.Vehicle.DRAG_COEFFICIENT,
+            Dynamic.Vehicle.LIFT_COEFFICIENT,
+            Aircraft.Wing.AREA,
+        ]
         outputs = [Dynamic.Vehicle.LIFT, Dynamic.Vehicle.DRAG]
 
         self.add_subsystem(
