@@ -1411,7 +1411,9 @@ class AviaryGroup(om.Group):
                     ref=MTOW,
                 )
 
-                self.add_constraint(Mission.Constraints.RANGE_RESIDUAL, equals=0, ref=1000)
+                # If target_range is unspecified, then don't assume we want to fly a fixed range.
+                if 'target_range' in self.post_mission_info:
+                    self.add_constraint(Mission.Constraints.RANGE_RESIDUAL, equals=0, ref=1000)
 
             elif problem_type is ProblemType.OFF_DESIGN_MAX_RANGE:
                 # fixed vehicle gross mass aviary finds optimal trajectory and maximum range

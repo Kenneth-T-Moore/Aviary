@@ -7,6 +7,8 @@ from openmdao.utils.testing_utils import require_pyoptsparse, use_tempdirs
 import aviary.api as av
 from aviary.models.missions.two_dof_default import phase_info as twodof_phase_info
 from aviary.subsystems.energy.battery_builder import BatteryBuilder
+from aviary.variable_info.enums import ProblemType
+from aviary.variable_info.variables import Settings
 
 
 @use_tempdirs
@@ -72,9 +74,10 @@ class TestBatteryMission(unittest.TestCase):
             'validation_cases/validation_data/test_models/aircraft_for_bench_FwFm_with_electric.csv',
             phase_info,
         )
-        prob.load_external_subsystems([BatteryBuilder()])
-
+        prob.aviary_inputs.set_val(Settings.PROBLEM_TYPE), ProblemType.OFF_DESIGN_MAX_RANGE)
         prob.aviary_inputs.set_val(av.Aircraft.Battery.EFFICIENCY, 0.95, 'unitless')
+
+        prob.load_external_subsystems([BatteryBuilder()])
 
         # Preprocess inputs
         prob.check_and_preprocess_inputs()
