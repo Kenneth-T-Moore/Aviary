@@ -73,7 +73,6 @@ phase_info = {
     },
     'post_mission': {
         'include_landing': True,
-        'constrain_range': True,
         'target_range': (3380.0, 'nmi'),
     },
 }
