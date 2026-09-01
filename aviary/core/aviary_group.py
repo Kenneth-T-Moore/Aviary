@@ -475,9 +475,18 @@ class AviaryGroup(om.Group):
 
         # This function sets all the following defaults if they were not already set:
         # self.pre_mission_info, self_post_mission_info,
-        # self.require_range_residual, self.target_range
         # Other specific self.*** are defined in here as well that are specific to each builder
         self.configurator.initial_guesses(self)
+
+        # If the user doesn't specify a target range, then the design range is used for
+        # sizing the aircraft or in other off-design missions that require it.
+        if 'target_range' in self.post_mission_info:
+            target_range = wrapped_convert_units(self.post_mission_info['target_range'], 'NM')
+        else:
+            target_range = aviary_inputs.get_val(Aircraft.Design.RANGE, units='NM')
+
+        aviary_inputs.set_val(Mission.RANGE, target_range, units='NM')
+        self.target_range = target_range
 
         # TODO this seems like the wrong place to define the core subsystems. Maybe move to
         # load_inputs?
@@ -832,6 +841,22 @@ class AviaryGroup(om.Group):
         )
 
         self.configurator.add_post_mission_systems(self)
+
+        # This component is always present, even when its residual is not constrained.
+        self.add_subsystem(
+            'range_constraint',
+            om.ExecComp(
+                'range_resid = target_range - actual_range',
+                target_range={'val': self.target_range, 'units': 'NM'},
+                actual_range={'val': self.target_range, 'units': 'NM'},
+                range_resid={'val': 30, 'units': 'NM'},
+            ),
+            promotes_inputs=[
+                ('actual_range', Mission.RANGE),
+                'target_range',
+            ],
+            promotes_outputs=[('range_resid', Mission.Constraints.RANGE_RESIDUAL)],
+        )
 
         post_mission = self.post_mission
         self.add_subsystem(
@@ -1371,8 +1396,7 @@ class AviaryGroup(om.Group):
                     ],
                 )
 
-                if self.require_range_residual:
-                    self.add_constraint(Mission.Constraints.RANGE_RESIDUAL, equals=0, ref=1000)
+                self.add_constraint(Mission.Constraints.RANGE_RESIDUAL, equals=0, ref=1000)
 
             elif problem_type is ProblemType.OFF_DESIGN_MIN_FUEL:
                 # target range problem
