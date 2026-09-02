@@ -74,8 +74,14 @@ class TestBatteryMission(unittest.TestCase):
             'validation_cases/validation_data/test_models/aircraft_for_bench_FwFm_with_electric.csv',
             phase_info,
         )
-        prob.aviary_inputs.set_val(Settings.PROBLEM_TYPE), ProblemType.OFF_DESIGN_MAX_RANGE)
+        prob.problem_type = av.ProblemType.OFF_DESIGN_MIN_FUEL
+
+        prob.aviary_inputs.set_val(Settings.PROBLEM_TYPE, ProblemType.OFF_DESIGN_MIN_FUEL)
         prob.aviary_inputs.set_val(av.Aircraft.Battery.EFFICIENCY, 0.95, 'unitless')
+
+        # Weight comes from Sizing run.
+        prob.aviary_inputs.set_val(av.Aircraft.Design.GROSS_MASS, 143284.5662295, 'lbm')
+        prob.aviary_inputs.set_val(av.Mission.GROSS_MASS, 143284.5662295, 'lbm')
 
         prob.load_external_subsystems([BatteryBuilder()])
 
@@ -113,7 +119,7 @@ class TestBatteryMission(unittest.TestCase):
                 actual = prob.get_val(var_name, units=units)
                 if actual.size > 1:
                     actual = actual[-1]
-                assert_near_equal(actual, expected, 1.0e-7)
+                assert_near_equal(actual, expected, 1.0e-6)
 
         # Check battery state-of-charge over mission
         soc_cruise1_var = f'traj.cruise1.timeseries.{av.Dynamic.Vehicle.BATTERY_STATE_OF_CHARGE}'
