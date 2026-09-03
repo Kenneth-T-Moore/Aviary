@@ -42,7 +42,6 @@ class AeroBuilder(SubsystemBuilder):
             'vt_area_ratio',
             'CD_fus',
             'CD_vtail',
-            'CD_gear',
         ]
 
     def get_parameters(self, aviary_inputs=None, **kwargs):

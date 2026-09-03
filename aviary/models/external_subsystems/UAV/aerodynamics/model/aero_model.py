@@ -356,7 +356,7 @@ class TotalAircraftAero(om.Group):
                 CD_fus={'shape': (nn,), 'units': 'unitless'},
                 CD_vtail={'shape': (nn,), 'units': 'unitless'},
                 lifting_surface_CD={'shape': (nn,), 'units': 'unitless'},
-                CD_gear={'shape': (1), 'units': 'unitless'},
+                CD_gear={'val': 0.0, 'units': 'unitless'},
                 CD={'shape': (nn,), 'units': 'unitless'},
             ),
             promotes_inputs=['CD_fus', 'CD_vtail', 'lifting_surface_CD', ('CD_gear',Aircraft.LandingGear.DRAG_COEFFICIENT)],
