@@ -4,7 +4,7 @@
 class ProblemConfiguratorBase:
     """Base class for a problem configurator in Aviary."""
 
-    def initial_guesses(self, prob):
+    def initial_guesses(self, aviary_group):
         """
         Set any initial guesses for variables in the aviary problem.
 
@@ -12,12 +12,12 @@ class ProblemConfiguratorBase:
 
         Parameters
         ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
         """
         pass
 
-    def get_default_phase_info(self, prob):
+    def get_default_phase_info(self, aviary_group):
         """
         Return a default phase_info for this type or problem.
 
@@ -28,8 +28,8 @@ class ProblemConfiguratorBase:
 
         Parameters
         ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
 
         Returns
         -------
@@ -39,14 +39,9 @@ class ProblemConfiguratorBase:
         msg = 'This pmethod must be defined in your problem configurator.'
         raise NotImplementedError(msg)
 
-    def get_code_origin(self, prob):
+    def get_code_origin(self):
         """
         Return the legacy of this problem configurator.
-
-        Parameters
-        ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
 
         Returns
         -------
@@ -55,18 +50,18 @@ class ProblemConfiguratorBase:
         """
         pass
 
-    def add_takeoff_systems(self, prob):
+    def add_takeoff_systems(self, aviary_group):
         """
-        Adds takeoff systems to the model in prob.
+        Adds takeoff systems to the model in aviary_group.
 
         Parameters
         ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
         """
         pass
 
-    def get_phase_builder(self, prob, phase_name, phase_options):
+    def get_phase_builder(self, aviary_group, phase_name, phase_options):
         """
         Return a phase_builder for the requested phase.
 
@@ -74,8 +69,8 @@ class ProblemConfiguratorBase:
 
         Parameters
         ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
         phase_name : str
             Name of the requested phase.
         phase_options : dict
@@ -83,13 +78,13 @@ class ProblemConfiguratorBase:
 
         Returns
         -------
-        PhaseBuilderBase
+        PhaseBuilder
             Phase builder for requested phase.
         """
         msg = 'This pmethod must be defined in your problem configurator.'
         raise NotImplementedError(msg)
 
-    def set_phase_options(self, prob, phase_name, phase_idx, phase, user_options):
+    def set_phase_options(self, aviary_group, phase_name, phase_idx, phase, user_options, comm):
         """
         Set any necessary problem-related options on the phase.
 
@@ -97,41 +92,48 @@ class ProblemConfiguratorBase:
 
         Parameters
         ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
         phase_name : str
             Name of the requested phase.
         phase_idx : int
-            Phase position in prob.phases. Can be used to identify first phase.
+            Phase position in aviary_group.phases. Can be used to identify first phase.
         phase : Phase
             Instantiated phase object.
         user_options : dict
             Subdictionary "user_options" from the phase_info.
+        comm : MPI.Comm or <FakeComm>
+            MPI Communicator from OpenMDAO problem.
         """
         pass
 
-    def link_phases(self, prob, phases, connect_directly=True):
+    def configure_trajectory(self, aviary_group, phases):
         """
-        Apply any additional phase linking.
-
-        Note that some phase variables are handled in the AviaryProblem. Only
-        problem-specific ones need to be linked here.
+        Link or configure phase connections to other upstream or downstream components.
 
         This is called from AviaryProblem.link_phases
 
         Parameters
         ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
-        phases : Phase
-            Phases to be linked.
-        connect_directly : bool
-            When True, then connected=True. This allows the connections to be
-            handled by constraints if `phases` is a parallel group under MPI.
+        aviary_group : AviaryGroup
+            Aviary model that owns this configurator.
+        phases : list[Phase]
+            List of all phases in the trajectory.
         """
         pass
 
-    def add_post_mission_systems(self, prob, include_landing=True):
+    def check_trajectory(self, aviary_group):
+        """
+        Checks the phase_info user options for any inconsistency.
+
+        Parameters
+        ----------
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
+        """
+        pass
+
+    def add_post_mission_systems(self, aviary_group):
         """
         Add any post mission systems.
 
@@ -141,37 +143,38 @@ class ProblemConfiguratorBase:
 
         Parameters
         ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
-        include_landing : bool
-            When True, include the landing systems.
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
         """
         pass
 
-    def add_objective(self, prob):
+    def add_objective(self, aviary_group):
         """
         Add any additional components related to objectives.
 
         Parameters
         ----------
-        prob : AviaryProblem
-            Problem that owns this builder.
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
         """
         pass
 
-    def add_guesses(self, prob, phase_name, phase, guesses, target_prob, parent_prefix):
+    def set_phase_initial_guesses(
+        self, aviary_group, phase_name, phase, guesses, target_prob, parent_prefix
+    ):
         """
         Adds the initial guesses for each variable of a given phase to the problem.
-        This method sets the initial guesses for time, control, state, and problem-specific
-        variables for a given phase. If using the GASP model, it also handles some special
-        cases that are not covered in the `phase_info` object. These include initial guesses
-        for mass, time, and distance, which are determined based on the phase name and other
-        mission-related variables.
+
+        This method sets the initial guesses into the openmdao model for time, controls, states,
+        and problem-specific variables for a given phase. If using the GASP model, it also handles
+        some special cases that are not covered in the `phase_info` object. These include initial
+        guesses for mass, time, and distance, which are determined based on the phase name and
+        other mission-related variables.
 
         Parameters
         ----------
-        phase_name : str
-            The name of the phase for which the guesses are being added.
+        aviary_group : AviaryGroup
+            Aviary model that owns this builder.
         phase : Phase
             The phase object for which the guesses are being added.
         guesses : dict

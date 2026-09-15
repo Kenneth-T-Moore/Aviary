@@ -3,10 +3,11 @@ import unittest
 import numpy as np
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials, assert_near_equal
+from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
 from aviary.subsystems.aerodynamics.flops_based.computed_aero_group import ComputedDrag
-from aviary.subsystems.aerodynamics.flops_based.drag import SimpleCD, SimpleDrag, TotalDrag
+from aviary.subsystems.aerodynamics.flops_based.drag import ScaledCD, SimpleDrag, TotalDrag
 from aviary.utils.aviary_values import AviaryValues
 from aviary.validation_cases.validation_tests import (
     get_flops_case_names,
@@ -15,9 +16,12 @@ from aviary.validation_cases.validation_tests import (
 )
 from aviary.variable_info.variables import Aircraft, Dynamic
 
-data_sets = get_flops_case_names(only=['LargeSingleAisle1FLOPS', 'LargeSingleAisle2FLOPS', 'N3CC'])
+data_sets = get_flops_case_names(
+    only=['LargeSingleAisle1FLOPS', 'LargeSingleAisle2FLOPS', 'advanced_single_aisle']
+)
 
 
+@use_tempdirs
 class SimpleDragTest(unittest.TestCase):
     @parameterized.expand(data_sets, name_func=print_case)
     def test_case(self, case_name):
@@ -39,7 +43,7 @@ class SimpleDragTest(unittest.TestCase):
         mission_keys = (
             Dynamic.Atmosphere.DYNAMIC_PRESSURE,
             'CD_prescaled',
-            'CD',
+            Dynamic.Vehicle.DRAG_COEFFICIENT,
             Dynamic.Atmosphere.MACH,
         )
 
@@ -57,7 +61,7 @@ class SimpleDragTest(unittest.TestCase):
         q, _ = mission_data.get_item(Dynamic.Atmosphere.DYNAMIC_PRESSURE)
         nn = len(q)
         model.add_subsystem('simple_drag', SimpleDrag(num_nodes=nn), promotes=['*'])
-        model.add_subsystem('simple_cd', SimpleCD(num_nodes=nn), promotes=['*'])
+        model.add_subsystem('simple_cd', ScaledCD(num_nodes=nn), promotes=['*'])
 
         prob.setup(force_alloc_complex=True)
 
@@ -86,7 +90,11 @@ class SimpleDragTest(unittest.TestCase):
         data = prob.check_partials(out_stream=None, method='cs')
         assert_check_partials(data, atol=2.5e-10, rtol=1e-12)
 
-        assert_near_equal(prob.get_val('CD'), mission_simple_CD[case_name], 1e-6)
+        assert_near_equal(
+            prob.get_val(Dynamic.Vehicle.DRAG_COEFFICIENT),
+            mission_simple_CD[case_name],
+            1e-6,
+        )
         assert_near_equal(prob.get_val(Dynamic.Vehicle.DRAG), mission_simple_drag[case_name], 1e-6)
 
 
@@ -118,7 +126,7 @@ class TotalDragTest(unittest.TestCase):
         )
 
         # drag = 4 digits precision
-        outputs_keys = ('CD_prescaled', 'CD', Dynamic.Vehicle.DRAG)
+        outputs_keys = ('CD_prescaled', Dynamic.Vehicle.DRAG_COEFFICIENT, Dynamic.Vehicle.DRAG)
 
         # using lowest precision from all available data should "always" work
         # - will a higher precision comparison work? find a practical tolerance that fits
@@ -159,10 +167,15 @@ class TotalDragTest(unittest.TestCase):
         data = prob.check_partials(out_stream=None, method='cs')
         assert_check_partials(data, atol=2.5e-10, rtol=1e-12)
 
-        assert_near_equal(prob.get_val('CD'), mission_total_CD[case_name], 1e-6)
+        assert_near_equal(
+            prob.get_val(Dynamic.Vehicle.DRAG_COEFFICIENT),
+            mission_total_CD[case_name],
+            1e-6,
+        )
         assert_near_equal(prob.get_val(Dynamic.Vehicle.DRAG), mission_total_drag[case_name], 1e-6)
 
 
+@use_tempdirs
 class ComputedDragTest(unittest.TestCase):
     def test_derivs(self):
         nn = 2
@@ -180,7 +193,7 @@ class ComputedDragTest(unittest.TestCase):
             'computed_drag',
             ComputedDrag(num_nodes=nn),
             promotes_inputs=['*'],
-            promotes_outputs=['CD', Dynamic.Vehicle.DRAG],
+            promotes_outputs=[Dynamic.Vehicle.DRAG_COEFFICIENT, Dynamic.Vehicle.DRAG],
         )
 
         prob.setup(force_alloc_complex=True)
@@ -203,7 +216,11 @@ class ComputedDragTest(unittest.TestCase):
         derivs = prob.check_partials(out_stream=None, method='cs')
         assert_check_partials(derivs, atol=1e-12, rtol=1e-12)
 
-        assert_near_equal(prob.get_val('CD'), [0.0249732, 0.0297451], 1e-6)
+        assert_near_equal(
+            prob.get_val(Dynamic.Vehicle.DRAG_COEFFICIENT),
+            [0.0249732, 0.0297451],
+            1e-6,
+        )
         assert_near_equal(prob.get_val(Dynamic.Vehicle.DRAG), [31350.8, 37268.8], 1e-6)
 
 
@@ -228,11 +245,10 @@ def _add_drag_coefficients(
     FCDSUP = flops_inputs.get_val(Aircraft.Design.SUPERSONIC_DRAG_COEFF_FACTOR)
 
     idx_sup = np.where(M >= 1.0)
-    mission_data.set_val('CD', CD_scaled)
     CD = CD_scaled / FCDSUB
     CD[idx_sup] = CD_scaled[idx_sup] / FCDSUP
     mission_data.set_val('CD_prescaled', CD)
-    mission_data.set_val('CD', CD_scaled)
+    mission_data.set_val(Dynamic.Vehicle.DRAG_COEFFICIENT, CD_scaled)
 
     FCD0 = flops_inputs.get_val(Aircraft.Design.ZERO_LIFT_DRAG_COEFF_FACTOR)
     CD0 = CD0_scaled / FCD0
@@ -289,7 +305,7 @@ mission_simple_drag[key] = np.array([42452.271402, 42310.935148, 41861.228883])
 mission_total_CD[key] = np.array([0.03304, 0.03293, 0.03258])
 mission_total_drag[key] = np.array([42452.27140246, 42310.93514779, 41861.22888293])
 
-key = 'N3CC'
+key = 'AdvancedSingleAisle'
 mission_test_data[key] = _mission_data = AviaryValues()
 _mission_data.set_val(Dynamic.Atmosphere.DYNAMIC_PRESSURE, [208.4, 288.5, 364.0], 'lbf/ft**2')
 _mission_data.set_val(Dynamic.Vehicle.MASS, [128777.0, 128721.0, 128667.0], 'lbm')

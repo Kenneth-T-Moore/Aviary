@@ -2,6 +2,7 @@ import unittest
 
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials
+from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
 from aviary.subsystems.mass.flops_based.surface_controls import (
@@ -10,15 +11,16 @@ from aviary.subsystems.mass.flops_based.surface_controls import (
 )
 from aviary.utils.test_utils.variable_test import assert_match_varnames
 from aviary.validation_cases.validation_tests import (
-    Version,
     flops_validation_test,
     get_flops_case_names,
     get_flops_options,
     print_case,
+    Version,
 )
-from aviary.variable_info.variables import Aircraft, Mission
+from aviary.variable_info.variables import Aircraft
 
 
+@use_tempdirs
 class SurfaceCtrlMassTest(unittest.TestCase):
     def setUp(self):
         self.prob = om.Problem()
@@ -34,16 +36,18 @@ class SurfaceCtrlMassTest(unittest.TestCase):
         prob.setup(check=False, force_alloc_complex=True)
 
         flops_validation_test(
+            self,
             prob,
             case_name,
             input_keys=[
                 Aircraft.Wing.SURFACE_CONTROL_MASS_SCALER,
-                Mission.Design.GROSS_MASS,
+                Aircraft.Design.GROSS_MASS,
                 Aircraft.Wing.CONTROL_SURFACE_AREA_RATIO,
                 Aircraft.Wing.AREA,
+                Aircraft.Design.MAX_MACH,
             ],
             output_keys=[Aircraft.Wing.SURFACE_CONTROL_MASS, Aircraft.Wing.CONTROL_SURFACE_AREA],
-            version=Version.TRANSPORT,
+            version=Version.TRANSPORT_and_BWB,
             tol=2e-4,
             atol=1e-11,
             rtol=1e-11,
@@ -70,17 +74,19 @@ class SurfaceCtrlMassTest2(unittest.TestCase):
         prob = om.Problem()
         prob.model.add_subsystem('surf_ctrl', SurfaceControlMass(), promotes=['*'])
 
-        prob.model_options['*'] = get_flops_options('N3CC', preprocess=True)
+        prob.model_options['*'] = get_flops_options('AdvancedSingleAisle', preprocess=True)
 
         prob.setup(check=False, force_alloc_complex=True)
-        prob.set_val(Mission.Design.GROSS_MASS, 130000, 'lbm')
+        prob.set_val(Aircraft.Design.GROSS_MASS, 130000, 'lbm')
         prob.set_val(Aircraft.Wing.CONTROL_SURFACE_AREA_RATIO, 1, 'unitless')
         prob.set_val(Aircraft.Wing.AREA, 1000, 'ft**2')
+        prob.set_val(Aircraft.Design.MAX_MACH, 0.8, 'unitless')
 
         partial_data = prob.check_partials(out_stream=None, method='cs')
         assert_check_partials(partial_data, atol=1e-12, rtol=1e-12)
 
 
+@use_tempdirs
 class AltSurfaceCtrlMassTest(unittest.TestCase):
     def setUp(self):
         self.prob = om.Problem()
@@ -96,6 +102,7 @@ class AltSurfaceCtrlMassTest(unittest.TestCase):
         prob.setup(check=False, force_alloc_complex=True)
 
         flops_validation_test(
+            self,
             prob,
             case_name,
             input_keys=[
@@ -132,7 +139,7 @@ class AltSurfaceCtrlMassTest2(unittest.TestCase):
         prob = om.Problem()
         prob.model.add_subsystem('surf_ctrl', AltSurfaceControlMass(), promotes=['*'])
 
-        prob.model_options['*'] = get_flops_options('N3CC', preprocess=True)
+        prob.model_options['*'] = get_flops_options('AdvancedSingleAisle', preprocess=True)
 
         prob.setup(check=False, force_alloc_complex=True)
         prob.set_val(Aircraft.Wing.AREA, 1000, 'ft**2')

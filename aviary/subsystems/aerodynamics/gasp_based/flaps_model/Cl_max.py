@@ -17,7 +17,7 @@ class CLmaxCalculation(om.ExplicitComponent):
             units='unitless',
             desc='VLAM8: sensitivity of flap clean wing maximum lift coefficient to wing sweep angle',
         )
-        add_aviary_input(self, Dynamic.Atmosphere.SPEED_OF_SOUND, desc='INGASP.SA', units='ft/s')
+        add_aviary_input(self, Dynamic.Atmosphere.SPEED_OF_SOUND, units='ft/s')
 
         # from component 3 outputs
         add_aviary_input(self, Aircraft.Wing.FLAP_LIFT_INCREMENT_OPTIMUM, units='unitless')
@@ -78,13 +78,12 @@ class CLmaxCalculation(om.ExplicitComponent):
 
         # other inputs
 
-        add_aviary_input(self, Aircraft.Wing.LOADING, units='lbf/ft**2')
+        add_aviary_input(self, Aircraft.Design.WING_LOADING, units='lbf/ft**2')
 
         add_aviary_input(
             self,
             Dynamic.Atmosphere.STATIC_PRESSURE,
             units='lbf/ft**2',
-            desc='INGASP.P0',
         )
 
         add_aviary_input(self, Aircraft.Wing.AVERAGE_CHORD, units='ft')
@@ -124,10 +123,8 @@ class CLmaxCalculation(om.ExplicitComponent):
         add_aviary_input(
             self,
             Dynamic.Atmosphere.KINEMATIC_VISCOSITY,
-            val=0.15723e-03,
-            desc='INGASP.XKV',
         )
-        add_aviary_input(self, Dynamic.Atmosphere.TEMPERATURE, units='degR', desc='INGASP.T0')
+        add_aviary_input(self, Dynamic.Atmosphere.TEMPERATURE, units='degR')
 
         # outputs
 
@@ -139,9 +136,7 @@ class CLmaxCalculation(om.ExplicitComponent):
         )
         self.add_output(
             Dynamic.Atmosphere.MACH,
-            val=0.17522,
             units='unitless',
-            desc='SMN: Mach number',
         )
         self.add_output('reynolds', val=157.1111, units='unitless', desc='RNW: reynolds number')
 
@@ -170,12 +165,11 @@ class CLmaxCalculation(om.ExplicitComponent):
             ],
             dependent=True,
             method='cs',
-            step=1e-8,
         )
         self.declare_partials(
             Dynamic.Atmosphere.MACH,
             [
-                Aircraft.Wing.LOADING,
+                Aircraft.Design.WING_LOADING,
                 Dynamic.Atmosphere.STATIC_PRESSURE,
                 Aircraft.Wing.MAX_LIFT_REF,
                 'VLAM1',
@@ -198,7 +192,6 @@ class CLmaxCalculation(om.ExplicitComponent):
             ],
             dependent=True,
             method='cs',
-            step=1e-8,
         )
         self.declare_partials(
             'reynolds',
@@ -207,7 +200,7 @@ class CLmaxCalculation(om.ExplicitComponent):
                 Dynamic.Atmosphere.SPEED_OF_SOUND,
                 Aircraft.Wing.AVERAGE_CHORD,
                 Dynamic.Atmosphere.STATIC_PRESSURE,
-                Aircraft.Wing.LOADING,
+                Aircraft.Design.WING_LOADING,
                 Aircraft.Wing.MAX_LIFT_REF,
                 'VLAM1',
                 'VLAM2',
@@ -229,7 +222,6 @@ class CLmaxCalculation(om.ExplicitComponent):
             ],
             dependent=True,
             method='cs',
-            step=1e-8,
         )
 
     def compute(self, inputs, outputs):
@@ -249,7 +241,7 @@ class CLmaxCalculation(om.ExplicitComponent):
         VLAM14 = inputs['VLAM14']
 
         sos = inputs[Dynamic.Atmosphere.SPEED_OF_SOUND]
-        wing_loading = inputs[Aircraft.Wing.LOADING]
+        wing_loading = inputs[Aircraft.Design.WING_LOADING]
         P = inputs[Dynamic.Atmosphere.STATIC_PRESSURE]
         avg_chord = inputs[Aircraft.Wing.AVERAGE_CHORD]
         kinematic_viscosity = inputs[Dynamic.Atmosphere.KINEMATIC_VISCOSITY]
