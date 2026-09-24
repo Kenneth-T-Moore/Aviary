@@ -12,17 +12,17 @@ from aviary.variable_info.enums import LegacyCode
 class TestFortranToAviary(unittest.TestCase):
     """Test fortran_to_aviary legacy code input file conversion utility by comparing against already converted input files."""
 
-    def prepare_and_run(self, filepath, out_file=None, legacy_code=LegacyCode.GASP):
+    def prepare_and_run(self, filepath, output_file=None, legacy_code=LegacyCode.GASP):
         # Specify the output file
         filename = filepath.split('.')[0] + '.csv'
-        if not out_file:
-            out_file = Path.cwd() / Path('TEST_' + filename)
+        if not output_file:
+            output_file = Path.cwd() / Path('TEST_' + filename)
         else:
-            out_file = Path(out_file)
+            output_file = Path(output_file)
         legacy_code = legacy_code
 
         # Execute the conversion
-        fortran_to_aviary(filepath, legacy_code, out_file, force=True, verbosity=0)
+        fortran_to_aviary(filepath, legacy_code, output_file, force=True, verbosity=0)
 
     def compare_files(self, filepath, skip_list=['# created ']):
         """
@@ -40,6 +40,7 @@ class TestFortranToAviary(unittest.TestCase):
         with open('TEST_' + filename, 'r') as f_in, open(validation_data, 'r') as expected:
             for line in f_in:
                 if any(s in line for s in skip_list):
+                    # expected.readline()
                     continue
 
                 # Remove whitespace and compare
@@ -52,59 +53,81 @@ class TestFortranToAviary(unittest.TestCase):
 
                 except Exception:
                     exc_string = (
-                        f'Error: {filename}\n'
-                        f'Found:    {line_no_whitespace}\n'
-                        f'Expected: {expected_line}'
+                        f'Error: {filename}\nFound: {line_no_whitespace}\nExpected: {expected_line}'
                     )
                     raise Exception(exc_string)
 
     def test_large_single_aisle(self):
-        filepath = 'models/large_single_aisle_1/large_single_aisle_1_GASP.dat'
+        filepath = 'validation_cases/validation_data/legacy_files/large_single_aisle_1_GASP.dat'
         comparison_filepath = 'utils/test/data/converter_test_large_single_aisle_1_GASP.csv'
 
         self.prepare_and_run(
             filepath,
-            out_file=Path.cwd() / Path('TEST_' + comparison_filepath),
+            output_file=Path.cwd() / Path('TEST_' + comparison_filepath),
         )
         self.compare_files(comparison_filepath)
 
     def test_small_single_aisle(self):
-        filepath = 'models/small_single_aisle/small_single_aisle_GASP.dat'
+        filepath = 'validation_cases/validation_data/legacy_files/small_single_aisle_GASP.dat'
         comparison_filepath = 'utils/test/data/converter_test_small_single_aisle_GASP.csv'
 
         self.prepare_and_run(
             filepath,
-            out_file=Path.cwd() / Path('TEST_' + comparison_filepath),
+            output_file=Path.cwd() / Path('TEST_' + comparison_filepath),
         )
         self.compare_files(comparison_filepath)
 
     def test_diff_configuration(self):
-        filepath = 'utils/test/data/configuration_test_data_GASP.dat'
+        filepath = 'validation_cases/validation_data/legacy_files/configuration_test_data_GASP.dat'
         comparison_filepath = 'utils/test/data/converter_test_configuration_GASP.csv'
 
-        self.prepare_and_run(filepath, out_file=Path.cwd() / Path('TEST_' + comparison_filepath))
+        self.prepare_and_run(filepath, output_file=Path.cwd() / Path('TEST_' + comparison_filepath))
         self.compare_files(comparison_filepath)
 
     def test_bwb_gasp(self):
-        filepath = 'models/BWB/generic_BWB_GASP.dat'
+        filepath = 'validation_cases/validation_data/legacy_files/generic_BWB_GASP.dat'
         comparison_filepath = 'utils/test/data/converter_test_BWB_GASP.csv'
 
         self.prepare_and_run(
             filepath,
-            out_file=Path.cwd() / Path('TEST_' + comparison_filepath),
+            output_file=Path.cwd() / Path('TEST_' + comparison_filepath),
         )
         self.compare_files(comparison_filepath)
 
-    def test_N3CC(self):
-        # Note: The csv comparison file N3CC_generic_low_speed_polars_FLOPSinp.csv was generated using the fortran-to-Aviary converter
-        # and was not evaluated for comparison to the original. Thus, until this file is evaluated, this test is purely a regression
-        # test.
+    def test_bwb_detailed_flops(self):
+        filepath = 'validation_cases/validation_data/legacy_files/bwb_detailed_FLOPS.in'
+        comparison_filepath = 'utils/test/data/converter_test_BWB_detailed_FLOPS.csv'
 
-        filepath = 'models/N3CC/N3CC_generic_low_speed_polars_FLOPS.txt'
-        comparison_filepath = 'utils/test/data/converter_test_N3CC_FLOPS.csv'
         self.prepare_and_run(
             filepath,
-            out_file=Path.cwd() / Path('TEST_' + comparison_filepath),
+            output_file=Path.cwd() / Path('TEST_' + comparison_filepath),
+            legacy_code=LegacyCode.FLOPS,
+        )
+        self.compare_files(comparison_filepath)
+
+    def test_bwb_simple_flops(self):
+        filepath = 'validation_cases/validation_data/legacy_files/bwb_simple_FLOPS.in'
+        comparison_filepath = 'utils/test/data/converter_test_BWB_simple_FLOPS.csv'
+
+        self.prepare_and_run(
+            filepath,
+            output_file=Path.cwd() / Path('TEST_' + comparison_filepath),
+            legacy_code=LegacyCode.FLOPS,
+        )
+        self.compare_files(comparison_filepath)
+
+    def test_advanced_single_aisle(self):
+        # Note: The csv comparison file N3CC_generic_low_speed_polars_FLOPSinp.csv was generated
+        # using the fortran-to-Aviary converter and was not evaluated for comparison to the original.
+        # Thus, until this file is evaluated, this test is purely a regression test.
+
+        filepath = (
+            'validation_cases/validation_data/legacy_files/N3CC_generic_low_speed_polars_FLOPS.txt'
+        )
+        comparison_filepath = 'utils/test/data/converter_test_advanced_single_aisle_FLOPS.csv'
+        self.prepare_and_run(
+            filepath,
+            output_file=Path.cwd() / Path('TEST_' + comparison_filepath),
             legacy_code=LegacyCode.FLOPS,
         )
         self.compare_files(comparison_filepath)
@@ -112,6 +135,5 @@ class TestFortranToAviary(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
     # test = TestFortranToAviary()
-    # test.test_small_single_aisle()
+    # test.test_advanced_single_aisle()

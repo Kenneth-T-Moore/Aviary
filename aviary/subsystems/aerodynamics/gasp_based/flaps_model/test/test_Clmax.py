@@ -36,7 +36,7 @@ class CLmaxCalculationTestCase(unittest.TestCase):
         self.prob.set_val('VLAM14', 0.99124)
 
         self.prob.set_val(Dynamic.Atmosphere.SPEED_OF_SOUND, 1118.21948771, units='ft/s')  #
-        self.prob.set_val(Aircraft.Wing.LOADING, 128.0, units='lbf/ft**2')
+        self.prob.set_val(Aircraft.Design.WING_LOADING, 128.0, units='lbf/ft**2')
         self.prob.set_val(Dynamic.Atmosphere.STATIC_PRESSURE, (14.696 * 144), units='lbf/ft**2')
         self.prob.set_val(Aircraft.Wing.AVERAGE_CHORD, 12.61, units='ft')
         self.prob.set_val(Dynamic.Atmosphere.KINEMATIC_VISCOSITY, 0.15723e-3, units='ft**2/s')
@@ -49,19 +49,17 @@ class CLmaxCalculationTestCase(unittest.TestCase):
     def test_case(self):
         self.prob.run_model()
         tol = 6e-4
-        print()
 
-        reg_data = 2.8155
-        ans = self.prob['CL_max']
-        assert_near_equal(ans, reg_data, tol)
+        expected_values = {
+            'CL_max': 2.8155,
+            Dynamic.Atmosphere.MACH: 0.17522,
+            'reynolds': 157.19864,
+        }
 
-        reg_data = 0.17522
-        ans = self.prob[Dynamic.Atmosphere.MACH]
-        assert_near_equal(ans, reg_data, tol)
-
-        reg_data = 157.19864
-        ans = self.prob['reynolds']
-        assert_near_equal(ans, reg_data, tol)
+        for var_name, reg_data in expected_values.items():
+            with self.subTest(var=var_name):
+                ans = self.prob[var_name]
+                assert_near_equal(ans, reg_data, tol)
 
         data = self.prob.check_partials(out_stream=None, method='fd')
         assert_check_partials(

@@ -5,7 +5,7 @@ from openmdao.utils.testing_utils import use_tempdirs
 import aviary.api as av
 from aviary.subsystems.geometry.geometry_builder import CoreGeometryBuilder
 from aviary.variable_info.enums import LegacyCode
-from aviary.variable_info.variable_meta_data import _MetaData as BaseMetaData
+from aviary.variable_info.variable_meta_data import CoreMetaData
 from aviary.variable_info.variables import Aircraft
 
 GASP = LegacyCode.GASP
@@ -13,7 +13,7 @@ FLOPS = LegacyCode.FLOPS
 
 
 @use_tempdirs
-class TestGASPGeomBuilder(av.TestSubsystemBuilderBase):
+class TestGASPGeomBuilder(av.TestSubsystemBuilder):
     """
     That class inherits from TestSubsystemBuilder. So all the test functions are
     within that inherited class. The setUp() method prepares the class and is run
@@ -22,8 +22,8 @@ class TestGASPGeomBuilder(av.TestSubsystemBuilderBase):
 
     def setUp(self):
         self.subsystem_builder = CoreGeometryBuilder(
-            'core_geometry',
-            BaseMetaData,
+            'geometry',
+            CoreMetaData,
             code_origin=GASP,
             code_origin_to_prioritize=GASP,
         )
@@ -32,12 +32,6 @@ class TestGASPGeomBuilder(av.TestSubsystemBuilderBase):
         self.aviary_values.set_val(Aircraft.Electrical.HAS_HYBRID_SYSTEM, False, units='unitless')
         self.aviary_values.set_val(Aircraft.Wing.HAS_FOLD, True, units='unitless')
         self.aviary_values.set_val(Aircraft.Wing.HAS_STRUT, True, units='unitless')
-        self.aviary_values.set_val(
-            Aircraft.Design.COMPUTE_HTAIL_VOLUME_COEFF, True, units='unitless'
-        )
-        self.aviary_values.set_val(
-            Aircraft.Design.COMPUTE_VTAIL_VOLUME_COEFF, True, units='unitless'
-        )
         self.aviary_values.set_val(Aircraft.Wing.SPAN_EFFICIENCY_REDUCTION, True, units='unitless')
         self.aviary_values.set_val(Aircraft.Wing.CHOOSE_FOLD_LOCATION, True, units='unitless')
         self.aviary_values.set_val(
@@ -48,7 +42,7 @@ class TestGASPGeomBuilder(av.TestSubsystemBuilderBase):
         )
 
 
-class TestGASPGeomBuilderHybrid(av.TestSubsystemBuilderBase):
+class TestGASPGeomBuilderHybrid(av.TestSubsystemBuilder):
     """
     That class inherits from TestSubsystemBuilder. So all the test functions are
     within that inherited class. The setUp() method prepares the class and is run
@@ -57,8 +51,8 @@ class TestGASPGeomBuilderHybrid(av.TestSubsystemBuilderBase):
 
     def setUp(self):
         self.subsystem_builder = CoreGeometryBuilder(
-            'core_geometry',
-            BaseMetaData,
+            'geometry',
+            CoreMetaData,
             code_origin=(GASP, FLOPS),
             code_origin_to_prioritize=GASP,
         )
@@ -67,12 +61,6 @@ class TestGASPGeomBuilderHybrid(av.TestSubsystemBuilderBase):
         self.aviary_values.set_val(Aircraft.Electrical.HAS_HYBRID_SYSTEM, True, units='unitless')
         self.aviary_values.set_val(Aircraft.Wing.HAS_FOLD, True, units='unitless')
         self.aviary_values.set_val(Aircraft.Wing.HAS_STRUT, True, units='unitless')
-        self.aviary_values.set_val(
-            Aircraft.Design.COMPUTE_HTAIL_VOLUME_COEFF, True, units='unitless'
-        )
-        self.aviary_values.set_val(
-            Aircraft.Design.COMPUTE_VTAIL_VOLUME_COEFF, True, units='unitless'
-        )
         self.aviary_values.set_val(Aircraft.Wing.SPAN_EFFICIENCY_REDUCTION, True, units='unitless')
         self.aviary_values.set_val(Aircraft.Wing.CHOOSE_FOLD_LOCATION, True, units='unitless')
         self.aviary_values.set_val(

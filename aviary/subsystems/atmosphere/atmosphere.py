@@ -1,9 +1,10 @@
+import numpy as np
 import openmdao.api as om
-from dymos.models.atmosphere.atmos_1976 import USatm1976Comp
 
 from aviary.subsystems.atmosphere.flight_conditions import FlightConditions
-from aviary.variable_info.enums import SpeedType
-from aviary.variable_info.variables import Dynamic
+from aviary.variable_info.enums import AtmosphereModel, SpeedType
+from aviary.variable_info.variables import Dynamic, Settings
+from aviary.subsystems.atmosphere.utils.get_atmosphere_data import get_atmosphere_data
 
 
 class Atmosphere(om.Group):
@@ -19,18 +20,11 @@ class Atmosphere(om.Group):
 
         self.options.declare(
             'h_def',
-            values=('geopotential', 'geodetic'),
-            default='geodetic',
+            values=('geopotential', 'geometric'),
+            default='geometric',
             desc='The definition of altitude provided as input to the component. If '
-            '"geodetic", it will be converted to geopotential based on Equation 19 in '
+            '"geometric", it will be converted to geopotential based on Equation 19 in '
             'the original standard.',
-        )
-
-        self.options.declare(
-            'output_dsos_dh',
-            types=bool,
-            default=False,
-            desc='If true, the derivative of the speed of sound will be added as an output',
         )
 
         self.options.declare(
@@ -40,23 +34,22 @@ class Atmosphere(om.Group):
             desc='defines input airspeed as equivalent airspeed, true airspeed, or mach number',
         )
 
+        self.options.declare(
+            'delta_T_Celcius',
+            default=0.0,
+            desc='Temperature delta from International Standard Atmosphere (ISA) standard day conditions (degrees Celsius)',
+        )
+
     def setup(self):
         nn = self.options['num_nodes']
         speed_type = self.options['input_speed_type']
         h_def = self.options['h_def']
-        output_dsos_dh = self.options['output_dsos_dh']
 
         self.add_subsystem(
             name='standard_atmosphere',
-            subsys=USatm1976Comp(num_nodes=nn, h_def=h_def, output_dsos_dh=output_dsos_dh),
-            promotes_inputs=[('h', Dynamic.Mission.ALTITUDE)],
-            promotes_outputs=[
-                '*',
-                ('sos', Dynamic.Atmosphere.SPEED_OF_SOUND),
-                ('rho', Dynamic.Atmosphere.DENSITY),
-                ('temp', Dynamic.Atmosphere.TEMPERATURE),
-                ('pres', Dynamic.Atmosphere.STATIC_PRESSURE),
-            ],
+            subsys=AtmosphereComp(num_nodes=nn, h_def=h_def),
+            promotes_inputs=[Dynamic.Mission.ALTITUDE],
+            promotes_outputs=['*'],
         )
 
         self.add_subsystem(
@@ -64,3 +57,280 @@ class Atmosphere(om.Group):
             subsys=FlightConditions(num_nodes=nn, input_speed_type=speed_type),
             promotes=['*'],
         )
+
+
+class AtmosphereComp(om.ExplicitComponent):
+    """
+    Component model for atmosphere tables.
+    This model will calculate speed of sound and dynamic viscosity given inputs of
+    akima splines for altitude, temperature, pressure, and density.
+
+    Parameters
+    ----------
+    **kwargs : dict
+        Dictionary of optional arguments.
+    """
+
+    def initialize(self):
+        """Declare component options."""
+        self.options.declare(
+            'num_nodes', types=int, desc='Number of nodes to be evaluated in the RHS'
+        )
+        self.options.declare(
+            'h_def',
+            values=('geopotential', 'geometric'),
+            default='geopotential',
+            desc='The definition of altitude provided as input to the component.  If "geometric",'
+            'it will be converted to geopotential based on Equation 19 in the original standard.',
+        )
+
+        self.options.declare(
+            Settings.ATMOSPHERE_MODEL,
+            values=tuple(AtmosphereModel),
+            default=AtmosphereModel.STANDARD,
+            desc='The type of atmosphere model to use to determine atmospheric properties for the whole mission.',
+        )
+
+        self.options.declare(
+            'delta_T_Celcius',
+            types=(float, int),
+            default=0.0,
+            desc='Temperature delta from International Standard Atmosphere (ISA) standard day conditions (degrees Celcius)',
+        )
+
+    def setup(self):
+        """Add component inputs and outputs."""
+        nn = self.options['num_nodes']
+
+        self._dt = self.options['delta_T_Celcius']
+
+        self.source_data, self.planet, planet_radius, _, _ = get_atmosphere_data(
+            self.options[Settings.ATMOSPHERE_MODEL]
+        )
+
+        self._R0 = planet_radius[0]  # in meters
+
+        self._geometric = self.options['h_def'] == 'geometric'
+        # From the U.S. Standard Atmosphere 1976 publication located here
+        # https://www.ngdc.noaa.gov/stp/space-weather/online-publications/miscellaneous/us-standard-atmosphere-1976/us-standard-atmosphere_st76-1562_noaa.pdf
+
+        Rs = 8314.32  # J/(kmol*K), Ideal Gas constant
+        M_air = 0  #
+        gamma = 0  #
+
+        # The constants below are used as a simplification to enable calculation of properties not given by by source data tables
+        if self.planet == 'Earth':
+            M_air = 28.97  # (kg/kmol), molar mass of dry air on Earth
+            gamma = 1.4  # Ratio of specific heats
+            self._S = 110.4  # (K) Southerlands constant for Earth air
+            self._beta = 1.458e-6  # (s*m*K**(1/2)) viscosity scaling coefficient
+        elif self.planet == 'Mars':
+            M_air = 43.34  # (kg/kmol), mean molar mass of Mars atmosphere https://descanso.jpl.nasa.gov/propagation/mars/MarsPub_sec4.pdf
+            gamma = 1.36  # Ratio of specific heats, Based on averaging values from Hellas_summar, Hellas_winter, Equatorial_summar,
+            # Equatorial_winter, North_Pole_summer, North_Pole_Winter output from Mars-GRAM
+            # Mars atmosphere is 95% Co2 so we use the southerland constant for Co2 https://descanso.jpl.nasa.gov/propagation/mars/MarsPub_sec4.pdf
+            self._S = 222  # (K) Southerlands constant for Mars atmosphere https://doc.comsol.com/5.6/doc/com.comsol.help.cfd/cfd_ug_fluidflow_high_mach.08.27.html
+            self._beta = 1.503e-6  # (s*m*K**(1/2)) viscosity scaling coefficient calculated from other constants listed for C02
+            # https://doc.comsol.com/5.6/doc/com.comsol.help.cfd/cfd_ug_fluidflow_high_mach.08.27.html
+            # Calculated via the equation: self_beta = 1.370**10-5 * (273+self._S)/273**(3/2)
+        elif self.planet == 'Venus':
+            # 96% CO2 atmosphere
+            M_air = 43.45  # (kg/kmol) Venus, 12 Apr 2024, by Cedric Gillmann et al. https://arxiv.org/html/2404.07669v2
+            # source Venus before Venus Express, Taylor et al 2006
+            gamma = 1.29  # Ratio of specific heats, based on averaging the reference data from Venus-GRAM. Actual values are 1.24 at the surface and 1.45 at 150km
+            self._S = 222  # (K) we use the constant for CO2 which is simillar to Mars because this atmosphere is primarily driven by CO2 interaction.
+            self._beta = 1.503e-6  # (s*m*K**(1/2)) viscosity scaling coefficient calculated from other constants listed for C02, the same way as was done for Mars
+            # the only input the the equation os self._S so this result is the same as Mars
+
+        self._R_air = Rs / M_air  # (J/ (kg * K)), gas constant for atmosphere
+        self._K = gamma * Rs / M_air  # (J/(kg * K))
+
+        self.add_input(Dynamic.Mission.ALTITUDE, val=np.ones(nn), units='m')
+
+        self.add_output(
+            Dynamic.Atmosphere.TEMPERATURE, val=np.ones(nn), units='degK', desc='temperature of air'
+        )
+        self.add_output(
+            Dynamic.Atmosphere.STATIC_PRESSURE, val=np.ones(nn), units='Pa', desc='pressure of air'
+        )
+        self.add_output(
+            Dynamic.Atmosphere.DENSITY, val=np.ones(nn), units='kg/m**3', desc='density of air'
+        )
+        self.add_output(
+            Dynamic.Atmosphere.DYNAMIC_VISCOSITY,
+            val=np.ones(nn),
+            units='Pa*s',
+            desc='dynamic viscosity of air',
+        )
+        self.add_output(
+            Dynamic.Atmosphere.SPEED_OF_SOUND, val=np.ones(nn), units='m/s', desc='speed of sound'
+        )
+        self.add_output(
+            'dsos_dh',
+            val=np.ones(nn),
+            units='1/s',
+            desc='the change in the speed of sound with respect to height',
+        )
+
+        arange = np.arange(nn, dtype=int)
+        self.declare_partials(
+            [
+                Dynamic.Atmosphere.TEMPERATURE,
+                Dynamic.Atmosphere.STATIC_PRESSURE,
+                Dynamic.Atmosphere.DENSITY,
+                Dynamic.Atmosphere.DYNAMIC_VISCOSITY,
+                Dynamic.Atmosphere.SPEED_OF_SOUND,
+                'dsos_dh',
+            ],
+            Dynamic.Mission.ALTITUDE,
+            rows=arange,
+            cols=arange,
+        )
+
+    def compute(self, inputs, outputs):
+        """
+        Interpolate atmospheric properties for a given altitude.
+
+        Parameters
+        ----------
+        inputs : `Vector`
+            `Vector` containing inputs.
+        outputs : `Vector`
+            `Vector` containing outputs.
+        """
+        table_points = self.source_data.alt
+        h = inputs[Dynamic.Mission.ALTITUDE]
+
+        if self._geometric:
+            # convert geometric into geopotential altitude
+            h = (
+                h / (self._R0 + h) * self._R0
+            )  # Equation 19 from the U.S. Standard Atmosphere 1976 publication
+
+        # From this point forward, h is geopotential altitude (z in the original reference).
+
+        idx = np.searchsorted(table_points, h, side='left')
+        h_bin_left = np.hstack((table_points[0], table_points))
+        dx = h - h_bin_left[idx]
+
+        coeffs = self.source_data.akima_T[idx]
+        outputs[Dynamic.Atmosphere.TEMPERATURE] = T = (
+            coeffs[:, 0] + dx * (coeffs[:, 1] + dx * (coeffs[:, 2] + dx * coeffs[:, 3])) + self._dt
+        )
+
+        coeffs = self.source_data.akima_P[idx]
+        outputs[Dynamic.Atmosphere.STATIC_PRESSURE] = pressure = coeffs[:, 0] + dx * (
+            coeffs[:, 1] + dx * (coeffs[:, 2] + dx * coeffs[:, 3])
+        )
+
+        coeffs = self.source_data.akima_rho[idx]
+        raw_density = coeffs[:, 0] + dx * (coeffs[:, 1] + dx * (coeffs[:, 2] + dx * coeffs[:, 3]))
+
+        # Equation 42, rho = (P * M)/(R * (T + dT))
+        # Assumes pressure does not change (which is a simplification)
+        # We know (P * M)/(R * T) from the akima table lookups (raw data)
+        # We must correct the density from the lookup table by dt = delta_T_Celcius
+        # Note : _R_air is R/M
+        outputs[Dynamic.Atmosphere.DENSITY] = corrected_density = (
+            raw_density ** (-1) + self._R_air * self._dt * pressure ** (-1)
+        ) ** (-1)
+
+        # Equation 50
+        outputs[Dynamic.Atmosphere.SPEED_OF_SOUND] = (self._K * T) ** (0.5)
+
+        # dsos_dh is only used for unsteady_solved_flight_conditions
+        coeffs = self.source_data.akima_dT[idx]
+        dT_dh = coeffs[:, 0] + dx * (coeffs[:, 1] + dx * (coeffs[:, 2] + dx * coeffs[:, 3]))
+        outputs['dsos_dh'] = 0.5 * (self._K * T) ** (-0.5) * dT_dh * self._K
+
+        # Equation 51
+        outputs[Dynamic.Atmosphere.DYNAMIC_VISCOSITY] = (
+            self._beta * T ** (1.5) * (T + self._S) ** (-1)
+        )
+
+    def compute_partials(self, inputs, partials):
+        """
+        Compute sub-jacobian parts. The model is assumed to be in an unscaled state.
+
+        Parameters
+        ----------
+        inputs : Vector
+            Unscaled, dimensional input variables read via inputs[key].
+        partials : Jacobian
+            Subjac components written to partials[output_name, input_name].
+        """
+        table_points = self.source_data.alt
+        h = inputs[Dynamic.Mission.ALTITUDE]
+        dz_dh = 1.0
+
+        if self._geometric:
+            dz_dh = (self._R0 / (self._R0 + h)) ** 2
+            h = h / (self._R0 + h) * self._R0  # Equation 19 from the original standard.
+
+        # From this point forward, h is geopotential altitude (z in the original reference).
+
+        idx = np.searchsorted(table_points, h, side='left')
+        h_index = np.hstack((table_points[0], table_points))
+        dx = h - h_index[idx]
+
+        coeffs = self.source_data.akima_T[idx]
+        dT_dh = coeffs[:, 1] + dx * (2.0 * coeffs[:, 2] + 3.0 * coeffs[:, 3] * dx)
+        T = coeffs[:, 0] + dx * (coeffs[:, 1] + dx * (coeffs[:, 2] + dx * coeffs[:, 3])) + self._dt
+
+        coeffs = self.source_data.akima_P[idx]
+        pressure = coeffs[:, 0] + dx * (coeffs[:, 1] + dx * (coeffs[:, 2] + dx * coeffs[:, 3]))
+        dP_dh = coeffs[:, 1] + dx * (2.0 * coeffs[:, 2] + 3.0 * coeffs[:, 3] * dx)
+
+        coeffs = self.source_data.akima_rho[idx]
+        raw_density = coeffs[:, 0] + dx * (coeffs[:, 1] + dx * (coeffs[:, 2] + dx * coeffs[:, 3]))
+        raw_drho_dh = coeffs[:, 1] + dx * (
+            2.0 * coeffs[:, 2] + 3.0 * coeffs[:, 3] * dx
+        )  # needs correction
+        # corrected_density = (raw_density**(-1) + self._R_air*self._dt * pressure**(-1) )**(-1) # This gets complex because pressure changes as a function of h!
+        corrected_drho_dh = (
+            -1
+            * (raw_density ** (-1) + self._R_air * self._dt * pressure ** (-1)) ** (-2)
+            * (
+                -1 * raw_density ** (-2) * raw_drho_dh
+                + (-1 * self._R_air * self._dt * pressure ** (-2) * dP_dh)
+            )
+        )
+
+        # outputs[Dynamic.Atmosphere.DYNAMIC_VISCOSITY] = self._beta * T**(1.5) * (T + self._S)**(-1)
+        # need the product rule here
+        dviscosity_dh = (
+            1.5 * self._beta * T ** (0.5) * dT_dh * (T + self._S) ** (-1)
+            + self._beta * T ** (1.5) * -1 * (T + self._S) ** (-2) * dT_dh
+        )
+
+        # sos = (self._K * T)**(0.5)
+        # chain rule
+        dsos_dh = 0.5 * (self._K * T) ** (-0.5) * self._K * dT_dh
+
+        # similar to method in dymos
+        coeffs = self.source_data.akima_dT[idx]
+        d2T_dh2 = coeffs[:, 1] + dx * (2.0 * coeffs[:, 2] + 3.0 * coeffs[:, 3] * dx)
+        # dsos_dh = 0.5 * (self._K * T)**(-0.5) * dT_dh * self._K
+        # product rule & chain rule
+        partials['dsos_dh', Dynamic.Mission.ALTITUDE] = (
+            -(0.5 * 0.5 * (self._K * T) ** (-1.5) * (self._K * dT_dh)) * (dT_dh * self._K)
+            + 0.5 * (self._K * T) ** (-0.5) * d2T_dh2 * self._K
+        )
+
+        partials[Dynamic.Atmosphere.TEMPERATURE, Dynamic.Mission.ALTITUDE][...] = dT_dh.ravel()
+        partials[Dynamic.Atmosphere.STATIC_PRESSURE, Dynamic.Mission.ALTITUDE][...] = dP_dh.ravel()
+        partials[Dynamic.Atmosphere.DENSITY, Dynamic.Mission.ALTITUDE][...] = (
+            corrected_drho_dh.ravel()
+        )
+        partials[Dynamic.Atmosphere.DYNAMIC_VISCOSITY, Dynamic.Mission.ALTITUDE][...] = (
+            dviscosity_dh.ravel()
+        )
+        partials[Dynamic.Atmosphere.SPEED_OF_SOUND, Dynamic.Mission.ALTITUDE][...] = dsos_dh.ravel()
+
+        if self._geometric:
+            partials[Dynamic.Atmosphere.TEMPERATURE, Dynamic.Mission.ALTITUDE][...] *= dz_dh
+            partials[Dynamic.Atmosphere.STATIC_PRESSURE, Dynamic.Mission.ALTITUDE][...] *= dz_dh
+            partials[Dynamic.Atmosphere.DENSITY, Dynamic.Mission.ALTITUDE][...] *= dz_dh
+            partials[Dynamic.Atmosphere.DYNAMIC_VISCOSITY, Dynamic.Mission.ALTITUDE][...] *= dz_dh
+            partials[Dynamic.Atmosphere.SPEED_OF_SOUND, Dynamic.Mission.ALTITUDE][...] *= dz_dh
+            partials['dsos_dh', Dynamic.Mission.ALTITUDE] *= dz_dh**2

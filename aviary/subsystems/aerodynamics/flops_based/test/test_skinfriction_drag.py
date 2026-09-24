@@ -3,13 +3,15 @@ import unittest
 import numpy as np
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials, assert_near_equal
+from openmdao.utils.testing_utils import use_tempdirs
 
 from aviary.subsystems.aerodynamics.flops_based.skin_friction_drag import SkinFrictionDrag
 from aviary.variable_info.variables import Aircraft
 
 
+@use_tempdirs
 class SkinFrictionDragTest(unittest.TestCase):
-    def test_derivs(self):
+    def test_case(self):
         nn = 2
 
         fine = np.array([0.13, 0.125, 0.1195, 10.0392, 1.5491, 1.5491])
@@ -40,7 +42,7 @@ class SkinFrictionDragTest(unittest.TestCase):
         model.add_subsystem(
             'CDf',
             SkinFrictionDrag(num_nodes=nn, **options),
-            promotes_inputs=[Aircraft.Wing.AREA],
+            promotes_inputs=[Aircraft.Wing.AREA, Aircraft.Design.PERCENT_EXCRESCENCE_DRAG],
             promotes_outputs=['skin_friction_drag_coeff'],
         )
 
@@ -53,6 +55,8 @@ class SkinFrictionDragTest(unittest.TestCase):
         prob.set_val('CDf.laminar_fractions_upper', lam_up)
         prob.set_val('CDf.laminar_fractions_lower', lam_low)
         prob.set_val(Aircraft.Wing.AREA, 198.0)
+        # this must be hardcoded because the FLOPS EDET default is normally applied by the preprocessor
+        prob.set_val(Aircraft.Design.PERCENT_EXCRESCENCE_DRAG, 0.06)
 
         prob.run_model()
 
@@ -63,7 +67,7 @@ class SkinFrictionDragTest(unittest.TestCase):
 
         assert_near_equal(prob.get_val('skin_friction_drag_coeff'), [14.91229, 15.01284], 1e-6)
 
-    def test_derivs_multiengine(self):
+    def test_case_multiengine(self):
         nn = 2
 
         fine = np.array([0.13, 0.125, 0.1195, 10.0392, 1.5491, 1.5491, 1.125, 1.125, 1.125, 1.125])
@@ -123,7 +127,7 @@ class SkinFrictionDragTest(unittest.TestCase):
         model.add_subsystem(
             'CDf',
             SkinFrictionDrag(num_nodes=nn, **options),
-            promotes_inputs=[Aircraft.Wing.AREA],
+            promotes_inputs=[Aircraft.Wing.AREA, Aircraft.Design.PERCENT_EXCRESCENCE_DRAG],
             promotes_outputs=['skin_friction_drag_coeff'],
         )
 
@@ -136,6 +140,8 @@ class SkinFrictionDragTest(unittest.TestCase):
         prob.set_val('CDf.laminar_fractions_upper', lam_up)
         prob.set_val('CDf.laminar_fractions_lower', lam_low)
         prob.set_val(Aircraft.Wing.AREA, 198.0)
+        # this must be hardcoded because the FLOPS EDET default is normally applied by the preprocessor
+        prob.set_val(Aircraft.Design.PERCENT_EXCRESCENCE_DRAG, 0.06)
 
         prob.run_model()
 

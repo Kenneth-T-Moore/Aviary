@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_check_partials, assert_near_equal
+from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
 from aviary.subsystems.mass.flops_based.starter import TransportStarterMass
@@ -11,43 +12,46 @@ from aviary.validation_cases.validation_tests import (
     flops_validation_test,
     get_flops_case_names,
     get_flops_inputs,
+    get_flops_options,
     print_case,
+    Version,
 )
-from aviary.variable_info.variables import Aircraft, Mission
+from aviary.variable_info.variables import Aircraft
 
 
+@use_tempdirs
 class TransportStarterMassTest(unittest.TestCase):
     def setUp(self):
         self.prob = om.Problem()
 
-    @parameterized.expand(get_flops_case_names(omit='N3CC'), name_func=print_case)
+    @parameterized.expand(get_flops_case_names(omit='AdvancedSingleAisle'), name_func=print_case)
     def test_case_1(self, case_name):
         prob = self.prob
 
         inputs = get_flops_inputs(case_name, preprocess=True)
 
-        options = {
-            Aircraft.Engine.NUM_ENGINES: inputs.get_val(Aircraft.Engine.NUM_ENGINES),
-            Aircraft.Propulsion.TOTAL_NUM_ENGINES: inputs.get_val(
-                Aircraft.Propulsion.TOTAL_NUM_ENGINES
-            ),
-            Mission.Constraints.MAX_MACH: inputs.get_val(Mission.Constraints.MAX_MACH),
-        }
-
         prob.model.add_subsystem(
             'starter_test',
-            TransportStarterMass(**options),
+            TransportStarterMass(),
             promotes_outputs=['*'],
             promotes_inputs=['*'],
         )
 
+        prob.model_options['*'] = get_flops_options(case_name, preprocess=True)
+
         prob.setup(check=False, force_alloc_complex=True)
 
         flops_validation_test(
+            self,
             prob,
             case_name,
-            input_keys=[Aircraft.Nacelle.AVG_DIAMETER],
+            input_keys=[
+                Aircraft.Nacelle.AVG_DIAMETER,
+                Aircraft.Engine.SCALE_FACTOR,
+                Aircraft.Design.MAX_MACH,
+            ],
             output_keys=Aircraft.Propulsion.TOTAL_STARTER_MASS,
+            version=Version.TRANSPORT_and_BWB,
         )
 
     def test_case_2(self):
@@ -57,7 +61,6 @@ class TransportStarterMassTest(unittest.TestCase):
         options = {
             Aircraft.Engine.NUM_ENGINES: np.array([5]),
             Aircraft.Propulsion.TOTAL_NUM_ENGINES: 5,
-            Mission.Constraints.MAX_MACH: 0.785,
         }
 
         prob.model.add_subsystem(
@@ -70,6 +73,8 @@ class TransportStarterMassTest(unittest.TestCase):
         prob.setup(check=False, force_alloc_complex=True)
 
         prob.set_val(Aircraft.Nacelle.AVG_DIAMETER, np.array([7.94]), 'ft')
+        prob.set_val(Aircraft.Engine.SCALE_FACTOR, 1, 'unitless')
+        prob.set_val(Aircraft.Design.MAX_MACH, 0.785, 'unitless')
 
         prob.run_model()
 
@@ -101,20 +106,21 @@ class TransportStarterMassTest2(unittest.TestCase):
     def test_case_2(self):
         prob = om.Problem()
 
-        options = {
-            Aircraft.Engine.NUM_ENGINES: np.array([5]),
-            Aircraft.Propulsion.TOTAL_NUM_ENGINES: 5,
-            Mission.Constraints.MAX_MACH: 0.785,
-        }
-
         prob.model.add_subsystem(
             'starter_test',
-            TransportStarterMass(**options),
+            TransportStarterMass(),
             promotes_outputs=['*'],
             promotes_inputs=['*'],
         )
+
+        prob.model_options['*'] = get_flops_options('AdvancedSingleAisle', preprocess=True)
+        prob.model_options[Aircraft.Engine.NUM_ENGINES] = np.array([5])
+        prob.model_options[Aircraft.Propulsion.TOTAL_NUM_ENGINES] = 5
+
         prob.setup(check=False, force_alloc_complex=True)
         prob.set_val(Aircraft.Nacelle.AVG_DIAMETER, np.array([7.94]), 'ft')
+        prob.set_val(Aircraft.Engine.SCALE_FACTOR, 1, 'unitless')
+        prob.set_val(Aircraft.Design.MAX_MACH, 0.875, 'unitless')
 
         partial_data = prob.check_partials(out_stream=None, method='cs')
         assert_check_partials(partial_data, atol=1e-12, rtol=1e-12)

@@ -1,14 +1,14 @@
 def add_meta_data(
     key: str,
     meta_data: dict,
-    units='unitless',
+    units: str = 'unitless',
     default_value=0.0,
-    types=None,
+    types: type | None = None,
     multivalue: bool = False,
     option: bool = False,
-    desc: str = None,
-    historical_name=None,
-    _check_unique=True,
+    desc: str | None = None,
+    historical_name: dict | None = None,
+    _check_unique: bool = True,
 ):
     """
     Add new meta data associated with variables in the Aviary data hierarchy.
@@ -50,10 +50,10 @@ def add_meta_data(
     historical_name : dict or None
         dictionary of names that the variable held in prior codes
 
-        Example: {"FLOPS":"WTIN.WNGWT", "LEAPS1": "aircraft.inputs.wing_weight", "GASP":
+        Example: {"FLOPS":"WTIN.WNGWT", "GASP":
         "INGASP.WWGHT"}
 
-        NAMELIST nameing convention
+        NAMELIST naming convention
         &<function_name>.<namelist_name>.<var_name>
 
         Example: &DEFINE.CONFIN.GW
@@ -168,10 +168,10 @@ def update_meta_data(
     historical_name : dict or None
         dictionary of names that the variable held in prior codes
 
-        Example: {"FLOPS":"WTIN.WNGWT", "LEAPS1": "aircraft.inputs.wing_weight", "GASP":
+        Example: {"FLOPS":"WTIN.WNGWT", "GASP":
         "INGASP.WWGHT"}
 
-        NAMELIST nameing convention
+        NAMELIST naming convention
         &<function_name>.<namelist_name>.<var_name>
 
         Example: &DEFINE.CONFIN.GW

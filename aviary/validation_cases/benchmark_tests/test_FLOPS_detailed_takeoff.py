@@ -8,16 +8,21 @@ from openmdao.core.driver import Driver
 from openmdao.utils.assert_utils import assert_near_equal
 from openmdao.utils.testing_utils import require_pyoptsparse, use_tempdirs
 
-from aviary.models.N3CC.N3CC_data import inputs as _inputs
-from aviary.models.N3CC.N3CC_data import (
+from aviary.validation_cases.validation_data.test_data.advanced_single_aisle_data import (
+    inputs as _inputs,
+)
+from aviary.validation_cases.validation_data.test_data.advanced_single_aisle_data import (
     takeoff_liftoff_user_options as _takeoff_liftoff_user_options,
 )
-from aviary.models.N3CC.N3CC_data import takeoff_trajectory_builder as _takeoff_trajectory_builder
+from aviary.validation_cases.validation_data.test_data.advanced_single_aisle_data import (
+    takeoff_trajectory_builder as _takeoff_trajectory_builder,
+)
 from aviary.subsystems.premission import CorePreMission
 from aviary.subsystems.propulsion.utils import build_engine_deck
 from aviary.utils.functions import set_aviary_initial_values, set_aviary_input_defaults
 from aviary.utils.preprocessors import preprocess_options
 from aviary.utils.test_utils.default_subsystems import get_default_mission_subsystems
+from aviary.validation_cases.benchmark_utils import print_benchmark_results
 from aviary.variable_info.functions import setup_model_options
 from aviary.variable_info.variables import Aircraft, Dynamic
 
@@ -42,7 +47,8 @@ class TestFLOPSDetailedTakeoff(unittest.TestCase):
         # driver.opt_settings['nlp_scaling_method'] = None
         # driver.opt_settings['linear_solver'] = 'mumps'
 
-        self._do_run(driver, optimizer)
+        prob = self._do_run(driver, optimizer)
+        print_benchmark_results(prob)
 
     @require_pyoptsparse(optimizer='SNOPT')
     def bench_test_SNOPT(self):
@@ -56,7 +62,8 @@ class TestFLOPSDetailedTakeoff(unittest.TestCase):
         driver.opt_settings['Major feasibility tolerance'] = 1e-6
         driver.opt_settings['iSumm'] = 6
 
-        self._do_run(driver, optimizer)
+        prob = self._do_run(driver, optimizer)
+        print_benchmark_results(prob)
 
     def _do_run(self, driver: Driver, optimizer, *args):
         aviary_options = _inputs.deepcopy()
@@ -81,9 +88,13 @@ class TestFLOPSDetailedTakeoff(unittest.TestCase):
         # Upstream static analysis for aero
         takeoff.model.add_subsystem(
             'pre_mission',
-            CorePreMission(aviary_options=aviary_options, subsystems=default_premission_subsystems),
+            CorePreMission(
+                aviary_options=aviary_options,
+                subsystems=default_premission_subsystems,
+                subsystem_options={},
+            ),
             promotes_inputs=['aircraft:*'],
-            promotes_outputs=['aircraft:*', 'mission:*'],
+            promotes_outputs=['aircraft:*'],
         )
 
         # Instantiate the trajectory and add the phases
@@ -135,7 +146,9 @@ class TestFLOPSDetailedTakeoff(unittest.TestCase):
         takeoff_trajectory_builder.apply_initial_guesses(takeoff, 'traj')
 
         # run the problem
-        dm.run_problem(takeoff, run_driver=True, simulate=True, make_plots=False)
+        takeoff.result = dm.run_problem(takeoff, run_driver=True, simulate=True, make_plots=False)
+
+        self.assertTrue(takeoff.result.success)
 
         # liftoff.rhs_all.list_inputs(print_arrays=True)
         # takeoff.model.list_outputs(print_arrays=True)
@@ -147,6 +160,8 @@ class TestFLOPSDetailedTakeoff(unittest.TestCase):
         actual = takeoff.model.get_val('traj.takeoff_liftoff.states:distance', units='ft')[-1]
 
         assert_near_equal(actual, desired, 2e-2)
+
+        return takeoff
 
 
 if __name__ == '__main__':
