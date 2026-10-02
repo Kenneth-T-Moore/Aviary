@@ -137,12 +137,17 @@ class EnergyStateProblemConfigurator(ProblemConfiguratorBase):
         PhaseBuilder
             Phase builder for requested phase.
         """
-        if 'phase_type' in phase_options:
-            phase_builder = phase_options['phase_type']
-            if not issubclass(phase_builder, PhaseBuilder):
-                raise TypeError(
-                    'phase_builder for the phase called {phase_name} must be a PhaseBuilder object.'
-                )
+        user_options = phase_options['user_options']
+        if 'phase_type' in user_options:
+            builder = user_options['phase_type']
+            #if not issubclass(phase_builder, PhaseBuilder):
+            #    raise TypeError(
+            #        'phase_builder for the phase called {phase_name} must be a PhaseBuilder object.'
+            #    )
+            from aviary.variable_info.enums import PhaseType
+            if builder is PhaseType.TWO_DOF_TAKEOFF:
+                from aviary.mission.two_dof.phases.takeoff_phase import TakeoffPhase
+                phase_builder = TakeoffPhase
         else:
             phase_builder = EnergyPhase
 
@@ -270,17 +275,17 @@ class EnergyStateProblemConfigurator(ProblemConfiguratorBase):
             left = phase_info[left_name]['user_options']
             right = phase_info[right_name]['user_options']
 
-            for stem in stems:
-                final = left[f'{stem}_final']
-                initial = right[f'{stem}_initial']
+            #for stem in stems:
+                #final = left[f'{stem}_final']
+                #initial = right[f'{stem}_initial']
 
-                if initial[0] is None or final[0] is None:
-                    continue
+                #if initial[0] is None or final[0] is None:
+                    #continue
 
-                if initial != final:
-                    msg += '  Constraint mismatch across phase boundary:\n'
-                    msg += f'    {left_name} {stem}_final: {final}\n'
-                    msg += f'    {right_name} {stem}_initial: {initial}\n'
+                #if initial != final:
+                    #msg += '  Constraint mismatch across phase boundary:\n'
+                    #msg += f'    {left_name} {stem}_final: {final}\n'
+                    #msg += f'    {right_name} {stem}_initial: {initial}\n'
 
         if len(msg) > 0 and aviary_group.verbosity > Verbosity.QUIET:
             print('\nThe following issues were detected in your phase_info options.')
