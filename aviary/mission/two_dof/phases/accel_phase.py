@@ -158,9 +158,9 @@ class AccelPhase(PhaseBuilder):
     def get_linked_variables(self, aviary_inputs=None, user_options=None, subsystem_options=None):
         linked_vars = [
             Dynamic.Mission.DISTANCE,
+            Dynamic.Mission.TIME,
             Dynamic.Mission.VELOCITY,
             Dynamic.Vehicle.MASS,
-            'time',
         ]
         return linked_vars
 

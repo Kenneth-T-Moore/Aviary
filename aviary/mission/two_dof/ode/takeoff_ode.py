@@ -298,7 +298,7 @@ class TakeOffODE(TwoDOFODE):
         if not self.options['clean']:
             self.set_input_defaults('t_init_flaps', val=47.5, units='s')
             self.set_input_defaults('t_init_gear', val=37.3, units='s')
-            self.set_input_defaults('t_curr', val=np.zeros(nn), units='s')
+            #self.set_input_defaults('t_curr', val=np.zeros(nn), units='s')
             if ground_roll or rotation:
                 self.set_input_defaults('aero_ramps.flap_factor:final_val', val=1.0)
                 self.set_input_defaults('aero_ramps.gear_factor:final_val', val=1.0)

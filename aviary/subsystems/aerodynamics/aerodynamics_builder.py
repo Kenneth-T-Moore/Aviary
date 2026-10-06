@@ -748,13 +748,13 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
                     'mission_name': ['interference_independent_of_shielded_area'],
                     # "post_mission_name": ['interference_independent_of_shielded_area'],
                     'units': 'unitless',
-                    'phases': [phases],
+                    'phases': phases,
                 },
                 'drag_loss_due_to_shielded_wing_area': {
                     'mission_name': ['drag_loss_due_to_shielded_wing_area'],
                     # "post_mission_name": ['drag_loss_due_to_shielded_wing_area'],
                     'units': 'unitless',
-                    'phases': [phases],
+                    'phases': phases,
                 },
             }
         else:

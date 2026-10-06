@@ -259,8 +259,6 @@ class TwoDOFProblemConfigurator(ProblemConfiguratorBase):
 
         if phase_builder is PhaseType.SIMPLE_CRUISE:
             extra_args['targets'] = 'time'
-        elif phase_builder is PhaseType.TWO_DOF_TAKEOFF:
-            extra_args['targets'] = 't_curr'
 
         phase.set_time_options(
             fix_initial=fix_initial,
