@@ -732,7 +732,7 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
         return timeseries_vars
 
     def get_pre_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
-        if self.code_origin is GASP:
+        if self.code_origin is GASP and not self.all_tabular:
             # Bus variables found in 'cruise' and 'low_speed'.
             kwargs = {}
 
@@ -741,7 +741,17 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
                 methods = ['cruise', 'low_speed']
 
                 for name, phase in mission_info.items():
-                    if phase['subsystem_options']['aerodynamics'].get('method') in methods:
+                    subsystem_options = phase.get('subsystem_options')
+
+                    if subsystem_options is None:
+                        continue
+
+                    aero_options = subsystem_options.get('aerodynamics')
+
+                    if aero_options is None:
+                        continue
+
+                    if aero_options.get('method') in methods:
                         phases.append(name)
 
                 if len(phases) == 0:
