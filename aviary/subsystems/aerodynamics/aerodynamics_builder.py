@@ -734,27 +734,33 @@ class CoreAerodynamicsBuilder(AerodynamicsBuilder):
     def get_pre_mission_bus_variables(self, aviary_inputs=None, mission_info=None):
         if self.code_origin is GASP:
             # Bus variables found in 'cruise' and 'low_speed'.
-            methods = ['cruise', 'low_speed']
-            phases = []
-            for name, phase in mission_info.items():
-                if phase['subsystem_options']['aerodynamics'].get('method') in methods:
-                    phases.append(name)
+            kwargs = {}
 
-            if len(phases) == 0:
-                return {}
+            if mission_info is not None:
+                phases = []
+                methods = ['cruise', 'low_speed']
+
+                for name, phase in mission_info.items():
+                    if phase['subsystem_options']['aerodynamics'].get('method') in methods:
+                        phases.append(name)
+
+                if len(phases) == 0:
+                    return {}
+
+                kwargs = {'phases': phases}
 
             return {
                 'interference_independent_of_shielded_area': {
                     'mission_name': ['interference_independent_of_shielded_area'],
                     # "post_mission_name": ['interference_independent_of_shielded_area'],
                     'units': 'unitless',
-                    'phases': phases,
+                    **kwargs,
                 },
                 'drag_loss_due_to_shielded_wing_area': {
                     'mission_name': ['drag_loss_due_to_shielded_wing_area'],
                     # "post_mission_name": ['drag_loss_due_to_shielded_wing_area'],
                     'units': 'unitless',
-                    'phases': phases,
+                    **kwargs,
                 },
             }
         else:
