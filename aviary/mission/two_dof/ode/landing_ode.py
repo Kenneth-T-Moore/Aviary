@@ -7,7 +7,7 @@ from aviary.mission.two_dof.ode.landing_eom import (
     LandingGroundRollComponent,
 )
 from aviary.mission.two_dof.ode.two_dof_ode import TwoDOFODE
-from aviary.subsystems.aerodynamics.aerodynamics_builder import AerodynamicsBuilder
+from aviary.subsystems.aerodynamics.aerodynamics_builder import CoreAerodynamicsBuilder
 from aviary.subsystems.atmosphere.atmosphere import Atmosphere
 from aviary.subsystems.propulsion.propulsion_builder import PropulsionBuilder
 from aviary.variable_info.enums import SpeedType
@@ -76,7 +76,7 @@ class LandingSegment(TwoDOFODE):
 
         # collect the propulsion group names for later use with
         for subsystem in subsystems:
-            if isinstance(subsystem, AerodynamicsBuilder):
+            if isinstance(subsystem, CoreAerodynamicsBuilder):
                 subsystem_options = {
                     'method': 'low_speed',
                     'retract_flaps': True,
@@ -245,16 +245,17 @@ class LandingSegment(TwoDOFODE):
         self.set_input_defaults(Mission.Landing.INITIAL_MACH, val=0.1)
         self.set_input_defaults(Mission.Landing.BRAKING_FRICTION_COEFFICIENT, val=0.4)
 
-        # landing doesn't change flap or gear position
-        self.set_input_defaults('t_init_flaps_app', val=1e10)
-        self.set_input_defaults('t_init_gear_app', val=1e10)
-        self.set_input_defaults(Mission.Landing.INITIAL_ALTITUDE, val=50, units='ft')
-        self.set_input_defaults('aero_ramps.flap_factor:final_val', val=1.0)
-        self.set_input_defaults('aero_ramps.gear_factor:final_val', val=1.0)
-        self.set_input_defaults('aero_ramps.flap_factor:initial_val', val=0.0)
-        self.set_input_defaults('aero_ramps.gear_factor:initial_val', val=0.0)
+        if isinstance(subsystem, CoreAerodynamicsBuilder):
+            # landing doesn't change flap or gear position
+            self.set_input_defaults('t_init_flaps_app', val=1e10)
+            self.set_input_defaults('t_init_gear_app', val=1e10)
+            self.set_input_defaults('aero_ramps.flap_factor:final_val', val=1.0)
+            self.set_input_defaults('aero_ramps.gear_factor:final_val', val=1.0)
+            self.set_input_defaults('aero_ramps.flap_factor:initial_val', val=0.0)
+            self.set_input_defaults('aero_ramps.gear_factor:initial_val', val=0.0)
 
         self.set_input_defaults(Aircraft.Wing.AREA, val=1.0, units='ft**2')
+        self.set_input_defaults(Mission.Landing.INITIAL_ALTITUDE, val=50, units='ft')
 
         # Throttle Idle
         num_engine_types = len(aviary_options.get_val(Aircraft.Engine.NUM_ENGINES))

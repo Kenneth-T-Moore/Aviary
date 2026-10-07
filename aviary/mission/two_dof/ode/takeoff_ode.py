@@ -4,7 +4,7 @@ import openmdao.api as om
 from aviary.mission.two_dof.ode.takeoff_eom import TakeoffEOM
 from aviary.mission.two_dof.ode.two_dof_ode import TwoDOFODE
 from aviary.mission.two_dof.ode.v_rotate_comp import VRotateComp
-from aviary.subsystems.aerodynamics.aerodynamics_builder import AerodynamicsBuilder
+from aviary.subsystems.aerodynamics.aerodynamics_builder import CoreAerodynamicsBuilder
 from aviary.subsystems.mass.mass_to_weight import MassToWeight
 from aviary.subsystems.propulsion.propulsion_builder import PropulsionBuilder
 from aviary.variable_info.enums import AlphaModes, SpeedType
@@ -143,7 +143,7 @@ class TakeOffODE(TwoDOFODE):
             name = subsystem.name
             kwargs = {}
 
-            if isinstance(subsystem, AerodynamicsBuilder):
+            if isinstance(subsystem, CoreAerodynamicsBuilder):
                 kwargs = {'method': 'low_speed'}
 
             if name in subsystem_options:
@@ -288,24 +288,28 @@ class TakeOffODE(TwoDOFODE):
         if not (ground_roll or rotation):
             self.add_excess_rate_comps(nn)
 
-        self.set_input_defaults(Dynamic.Vehicle.ANGLE_OF_ATTACK, val=np.zeros(nn), units='rad')
         self.set_input_defaults(Dynamic.Mission.FLIGHT_PATH_ANGLE, val=np.zeros(nn), units='deg')
         self.set_input_defaults(Dynamic.Mission.VELOCITY, val=np.zeros(nn), units='kn')
         self.set_input_defaults(Dynamic.Mission.ALTITUDE, val=np.zeros(nn), units='ft')
         self.set_input_defaults(Dynamic.Vehicle.MASS, val=np.zeros(nn), units='lbm')
 
-        # TODO: Some of these are backdoor defaults.
-        if not self.options['clean']:
-            self.set_input_defaults('t_init_flaps', val=47.5, units='s')
-            self.set_input_defaults('t_init_gear', val=37.3, units='s')
-            if ground_roll or rotation:
-                self.set_input_defaults('aero_ramps.flap_factor:final_val', val=1.0)
-                self.set_input_defaults('aero_ramps.gear_factor:final_val', val=1.0)
-            else:
-                self.set_input_defaults('aero_ramps.flap_factor:final_val', val=0.0)
-                self.set_input_defaults('aero_ramps.gear_factor:final_val', val=0.0)
-            self.set_input_defaults('aero_ramps.flap_factor:initial_val', val=1.0)
-            self.set_input_defaults('aero_ramps.gear_factor:initial_val', val=1.0)
+        if not ground_roll:
+            self.set_input_defaults(Dynamic.Vehicle.ANGLE_OF_ATTACK, val=np.zeros(nn), units='rad')
+
+        if isinstance(subsystem, CoreAerodynamicsBuilder):
+            if not self.options['clean']:
+                # These are initial guesses. In 2dof, the optimizer chooses these.
+                self.set_input_defaults('t_init_flaps', val=47.5, units='s')
+                self.set_input_defaults('t_init_gear', val=37.3, units='s')
+                if ground_roll or rotation:
+                    # This disables gear and flap retraction for groundroll and rotation.
+                    self.set_input_defaults('aero_ramps.flap_factor:final_val', val=1.0)
+                    self.set_input_defaults('aero_ramps.gear_factor:final_val', val=1.0)
+                else:
+                    self.set_input_defaults('aero_ramps.flap_factor:final_val', val=0.0)
+                    self.set_input_defaults('aero_ramps.gear_factor:final_val', val=0.0)
+                self.set_input_defaults('aero_ramps.flap_factor:initial_val', val=1.0)
+                self.set_input_defaults('aero_ramps.gear_factor:initial_val', val=1.0)
 
         if ground_roll:
             self.set_input_defaults(Dynamic.Mission.VELOCITY_RATE, val=np.zeros(nn), units='kn/s')
