@@ -75,6 +75,7 @@ class LandingSegment(TwoDOFODE):
         )
 
         # collect the propulsion group names for later use with
+        core_aero = False
         for subsystem in subsystems:
             if isinstance(subsystem, CoreAerodynamicsBuilder):
                 subsystem_options = {
@@ -82,6 +83,7 @@ class LandingSegment(TwoDOFODE):
                     'retract_flaps': True,
                     'retract_gear': False,
                 }
+                core_aero = True
                 aero_builder = subsystem
                 aero_system = subsystem.build_mission(
                     num_nodes=1,
@@ -245,7 +247,7 @@ class LandingSegment(TwoDOFODE):
         self.set_input_defaults(Mission.Landing.INITIAL_MACH, val=0.1)
         self.set_input_defaults(Mission.Landing.BRAKING_FRICTION_COEFFICIENT, val=0.4)
 
-        if isinstance(subsystem, CoreAerodynamicsBuilder):
+        if core_aero:
             # landing doesn't change flap or gear position
             self.set_input_defaults('t_init_flaps_app', val=1e10)
             self.set_input_defaults('t_init_gear_app', val=1e10)

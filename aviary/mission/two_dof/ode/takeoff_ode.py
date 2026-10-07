@@ -139,12 +139,14 @@ class TakeOffODE(TwoDOFODE):
                 print_level=0,
             )
 
+        core_aero = False
         for subsystem in subsystems:
             name = subsystem.name
             kwargs = {}
 
             if isinstance(subsystem, CoreAerodynamicsBuilder):
                 kwargs = {'method': 'low_speed'}
+                core_aero = True
 
             if name in subsystem_options:
                 kwargs.update(subsystem_options[name])
@@ -296,7 +298,7 @@ class TakeOffODE(TwoDOFODE):
         if not ground_roll:
             self.set_input_defaults(Dynamic.Vehicle.ANGLE_OF_ATTACK, val=np.zeros(nn), units='rad')
 
-        if isinstance(subsystem, CoreAerodynamicsBuilder):
+        if core_aero:
             if not self.options['clean']:
                 # These are initial guesses. In 2dof, the optimizer chooses these.
                 self.set_input_defaults('t_init_flaps', val=47.5, units='s')
