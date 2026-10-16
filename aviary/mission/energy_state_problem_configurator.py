@@ -275,17 +275,17 @@ class EnergyStateProblemConfigurator(ProblemConfiguratorBase):
             left = phase_info[left_name]['user_options']
             right = phase_info[right_name]['user_options']
 
-            #for stem in stems:
-                #final = left[f'{stem}_final']
-                #initial = right[f'{stem}_initial']
+            for stem in stems:
+                final = left.get(f'{stem}_final')
+                initial = right.get(f'{stem}_initial')
 
-                #if initial[0] is None or final[0] is None:
-                    #continue
+                if initial[0] is None or final[0] is None:
+                    continue
 
-                #if initial != final:
-                    #msg += '  Constraint mismatch across phase boundary:\n'
-                    #msg += f'    {left_name} {stem}_final: {final}\n'
-                    #msg += f'    {right_name} {stem}_initial: {initial}\n'
+                if initial != final:
+                    msg += '  Constraint mismatch across phase boundary:\n'
+                    msg += f'    {left_name} {stem}_final: {final}\n'
+                    msg += f'    {right_name} {stem}_initial: {initial}\n'
 
         if len(msg) > 0 and aviary_group.verbosity > Verbosity.QUIET:
             print('\nThe following issues were detected in your phase_info options.')
